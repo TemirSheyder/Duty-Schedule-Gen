@@ -1,8 +1,16 @@
 {
   "fonts": [
-    { "key": "gilroy",      "label": "Gilroy",        "file": "Gilroy-Regular.ttf",    "weight": 500 },
-    { "key": "gilroyLight", "label": "Gilroy Light",  "file": "Gilroy-Light.ttf",      "weight": 300 },
-    { "key": "montserrat",  "label": "Montserrat",    "file": "Montserrat-SemiBold.ttf","weight": 600 }
+    { "key": "gilroy",        "label": "Gilroy",         "file": "GILROY-REGULAR.TTF",        "weight": 500 },
+    { "key": "gilroyLight",   "label": "Gilroy Light",   "file": "GILROY-LIGHT.TTF",          "weight": 300 },
+    { "key": "gilroyBold",    "label": "Gilroy Bold",    "file": "GILROY-BOLD.TTF",           "weight": 700 },
+    { "key": "gilroySemiBold","label": "Gilroy SemiBold","file": "GILROY-SEMIBOLD.TTF",       "weight": 600 },
+    { "key": "gilroyMedium",  "label": "Gilroy Medium",  "file": "GILROY-MEDIUM.TTF",         "weight": 500 },
+    { "key": "gilroyThin",    "label": "Gilroy Thin",    "file": "GILROY-THIN.TTF",           "weight": 200 },
+    { "key": "montserrat",    "label": "Montserrat",     "file": "MONTSERRAT-SEMIBOLD.TTF",   "weight": 600 },
+    { "key": "montserratBold","label": "Montserrat Bold","file": "MONTSERRAT-BOLD.TTF",       "weight": 700 },
+    { "key": "montserratMed", "label": "Montserrat Medium","file": "MONTSERRAT-MEDIUM.TTF",   "weight": 500 },
+    { "key": "montserratReg", "label": "Montserrat Regular","file": "MONTSERRAT-REGULAR.TTF", "weight": 400 },
+    { "key": "montserratLight","label": "Montserrat Light","file": "MONTSERRAT-LIGHT.TTF",    "weight": 300 }
   ],
   "builtin": [
     { "key": "helvetica", "label": "Helvetica" },
