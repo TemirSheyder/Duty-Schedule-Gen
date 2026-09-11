@@ -1,9 +1,5 @@
 {
-  "page": {
-    "w": 297,
-    "h": 210,
-    "scale": 1.4
-  },
+  "page": { "w": 297, "h": 210, "scale": 1.4 },
   "grid": {
     "rows": 5,
     "alwaysSix": false,
@@ -18,16 +14,8 @@
     "size": 48.5,
     "font": "gilroy",
     "fontOther": "gilroyLight",
-    "color": {
-      "r": 0.00392156862745098,
-      "g": 0.00392156862745098,
-      "b": 0.00392156862745098
-    },
-    "colorOther": {
-      "r": 0.6980392156862745,
-      "g": 0.6980392156862745,
-      "b": 0.6980392156862745
-    },
+    "color":      { "r": 0.0039, "g": 0.0039, "b": 0.0039 },
+    "colorOther": { "r": 0.698,  "g": 0.698,  "b": 0.698  },
     "dx": 0,
     "dy": 3.5
   },
@@ -36,45 +24,25 @@
     "size": 18,
     "font": "montserrat",
     "fontOther": "montserratMed",
-    "color": {
-      "r": 0.21176470588235294,
-      "g": 0.3686274509803922,
-      "b": 0.6627450980392157
-    },
-    "colorOther": {
-      "r": 0.6980392156862745,
-      "g": 0.6980392156862745,
-      "b": 0.6980392156862745
-    },
+    "color":      { "r": 0.212, "g": 0.369, "b": 0.663 },
+    "colorOther": { "r": 0.698, "g": 0.698, "b": 0.698 },
     "dx": 0,
-    "dy": 3.4000000000000004,
+    "dy": 3.4,
     "template": "НОМЕР",
     "showFloor": false,
     "floor": 0
   },
   "bar": {
     "h": 44.2,
-    "bg": {
-      "r": 0.21176470588235294,
-      "g": 0.3686274509803922,
-      "b": 0.6627450980392157
-    },
+    "bg": { "r": 0.212, "g": 0.369, "b": 0.663 },
     "line1": "График дежурств",
     "line1Font": "gilroyLight",
     "line1Size": 29,
-    "line1Color": {
-      "r": 1,
-      "g": 1,
-      "b": 1
-    },
+    "line1Color": { "r": 1, "g": 1, "b": 1 },
     "line2": "МЕСЯЦ ГОД",
     "line2Font": "gilroySemiBold",
     "line2Size": 37,
-    "line2Color": {
-      "r": 1,
-      "g": 1,
-      "b": 1
-    },
+    "line2Color": { "r": 1, "g": 1, "b": 1 },
     "dx": 44.8,
     "dy": -0.3,
     "lineGap": 1.25,
@@ -84,14 +52,10 @@
     "font": "gilroy",
     "size": 12,
     "h": 10.6,
-    "right": 7.500000000000001,
+    "right": 7.5,
     "top": 0.5,
     "padX": 2,
-    "color": {
-      "r": 0.21176470588235294,
-      "g": 0.3686274509803922,
-      "b": 0.6627450980392157
-    },
+    "color": { "r": 0.212, "g": 0.369, "b": 0.663 },
     "opacity": 0.39
   },
   "weekday": {
@@ -99,21 +63,13 @@
     "font": "montserrat",
     "form": "short",
     "case": "capitalize",
-    "color": {
-      "r": 0.00392156862745098,
-      "g": 0.00392156862745098,
-      "b": 0.00392156862745098
-    },
+    "color": { "r": 0.0039, "g": 0.0039, "b": 0.0039 },
     "padLeft": 3.8,
-    "y": 54.400000000000006
+    "y": 54.4
   },
   "line": {
     "w": 0.5,
-    "color": {
-      "r": 0.00392156862745098,
-      "g": 0.00392156862745098,
-      "b": 0.00392156862745098
-    },
+    "color": { "r": 0.0039, "g": 0.0039, "b": 0.0039 },
     "top": 11.6,
     "bottom": 155.6,
     "horiz": false,
@@ -130,44 +86,28 @@
     "previewMonth": "2026-12"
   },
   "images": [
-  {
-    "id": "img1",
-    "name": "Логотип",
-    "file": "SS11_Logo.png",
-    "x": 22,
-    "y": 22.6,
-    "scale": 1,
-    "baseW": 23,
-    "opacity": 1,
-    "blend": "normal",
-    "bright": 0,
-    "contrast": 100,
-    "sat": 100,
-    "clip": true
-  },
-  {
-    "id": "img2",
-    "name": "Фон",
-    "file": "SS11_Pattern.png",
-    "x": 226.3,
-    "y": 21.8,
-    "scale": 1,
-    "baseW": 144,
-    "opacity": 1,
-    "blend": "normal",
-    "bright": 0,
-    "contrast": 100,
-    "sat": 100,
-    "clip": true
-  }
-]
+    {
+      "id": "img1",
+      "name": "Логотип",
+      "file": "SS11_Logo.png",
+      "x": 22,
+      "y": 22.6,
+      "scale": 1,
+      "baseW": 23,
+      "opacity": 1,
+      "blend": "normal",
+      "bright": 0,
+      "contrast": 100,
+      "sat": 100,
+      "clip": true
+    },
     {
       "id": "img2",
       "name": "Фон",
-      "file": null,
-      "x": 635.5222222642813,
-      "y": 61.88838384250403,
-      "scale": 2.9,
+      "file": "SS11_Pattern.png",
+      "x": 226.3,
+      "y": 21.8,
+      "scale": 1,
       "baseW": 144,
       "opacity": 1,
       "blend": "normal",
