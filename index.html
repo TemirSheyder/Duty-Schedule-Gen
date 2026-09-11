@@ -1,3 +1,367 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Генератор графиков дежурств</title>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, Arial, sans-serif; font-size: 13px;
+    display: flex; height: 100vh; overflow: hidden; background: #f0f0f0;
+  }
+  #panel {
+    width: 460px; min-width: 460px; height: 100vh;
+    overflow-y: auto; background: #fff; border-right: 1px solid #ccc;
+    padding: 10px;
+  }
+  #panel h1 { font-size: 16px; margin: 0 0 12px; }
+  details { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 8px; background: #fff; }
+  details[open] { background: #fefefe; }
+  summary {
+    cursor: pointer; padding: 8px 10px; font-weight: bold; font-size: 12px;
+    color: #804A94; user-select: none; border-radius: 6px;
+    background: #faf7fc;
+  }
+  summary:hover { background: #f3eafb; }
+  details[open] summary { border-bottom: 1px solid #eee; border-radius: 6px 6px 0 0; }
+  .details-body { padding: 8px 10px 10px; }
+  .field { display: flex; align-items: center; margin: 4px 0; gap: 6px; }
+  .field label { flex: 1; font-size: 12px; color: #333; }
+  .field input[type="number"] { width: 76px; padding: 3px 5px; font-size: 12px; text-align: right; }
+  .field input[type="text"] { flex: 2; padding: 3px 5px; font-size: 12px; }
+  .field input[type="color"] { width: 40px; height: 24px; padding: 0; border: 1px solid #ccc; }
+  .field input[type="range"] { flex: 2; }
+  .field select { padding: 3px 5px; font-size: 12px; flex: 2; }
+  .field textarea { flex: 2; padding: 4px 5px; font-size: 11px; font-family: monospace; min-height: 60px; }
+  .unit { font-size: 11px; color: #888; width: 24px; }
+  .btns { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  button {
+    flex: 1; padding: 7px 10px; font-size: 12px; cursor: pointer;
+    border: none; border-radius: 4px; background: #804A94; color: #fff;
+  }
+  button.secondary { background: #555; }
+  button.mini { flex: none; padding: 3px 8px; font-size: 11px; }
+  button:hover { opacity: 0.9; }
+  #log {
+    background: #fafafa; padding: 6px; border-radius: 4px; font-family: monospace;
+    font-size: 11px; max-height: 140px; overflow: auto; white-space: pre-wrap;
+    margin-top: 8px; border: 1px solid #eee;
+  }
+  #previewWrap {
+    flex: 1; height: 100vh; overflow: auto; padding: 20px;
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
+  }
+  .pagePreview {
+    background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    position: relative;
+  }
+  .pagePreview svg { display: block; }
+  .hint { font-size: 11px; color: #888; margin: 4px 0; }
+  .colorGroup { background: #f9f9f9; border-radius: 4px; padding: 6px 8px; margin: 4px 0; }
+  .colorGroup > .field { margin: 2px 0; }
+  .dragHint { font-size: 11px; color: #804A94; margin-top: 4px; font-style: italic; }
+  .row2 { display: flex; gap: 8px; }
+  .row2 > div { flex: 1; }
+  .fontList { font-size: 11px; }
+  .fontItem { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid #eee; }
+  .fontItem:last-child { border-bottom: none; }
+  .fontItem .name { flex: 1; }
+  .muted { color: #804A94; font-style: italic; font-size: 11px; margin-top: 4px; }
+  .imgCard {
+    border: 1px solid #e0e0e0; border-radius: 4px; padding: 6px 8px;
+    margin: 6px 0; background: #fafafa;
+  }
+  .imgCard .imgHeader {
+    display: flex; align-items: center; gap: 6px; font-size: 12px;
+    font-weight: bold; color: #555; margin-bottom: 4px;
+  }
+  .imgCard .imgHeader .name { flex: 1; }
+</style>
+</head>
+<body>
+
+<div id="panel">
+  <h1>Генератор графиков дежурств</h1>
+
+  <div class="btns">
+    <button id="btnRefresh">Обновить</button>
+    <button id="btnAuto" class="secondary">Авто: ВКЛ</button>
+  </div>
+  <div class="btns">
+    <button id="btnCopy" class="secondary" style="flex:2">Скопировать параметры шаблона</button>
+    <button id="btnPdf" class="secondary">PDF</button>
+    <button id="btnPng" class="secondary">PNG</button>
+  </div>
+
+  <!-- ============ ШАБЛОНЫ ============ -->
+  <details open>
+    <summary>Использовать шаблон</summary>
+    <div class="details-body">
+      <div class="field">
+        <label>Готовые</label>
+        <select id="tplSelect">
+          <option value="">— выбрать —</option>
+        </select>
+        <button class="mini secondary" id="btnTplSave">+ Сохр.</button>
+      </div>
+      <div class="field" style="align-items:flex-start">
+        <label style="padding-top:4px">Вставить</label>
+        <textarea id="tplPaste" placeholder="Вставьте JSON сюда и нажмите «Применить»"></textarea>
+      </div>
+      <div class="btns" style="margin:0">
+        <button class="secondary mini" id="btnTplApply" style="flex:1">Применить JSON</button>
+      </div>
+      <div class="hint">После применения поле вставки очищается.</div>
+    </div>
+  </details>
+
+  <!-- ============ НАСТРОЙКИ ============ -->
+  <details open>
+    <summary>Настройки</summary>
+    <div class="details-body">
+      <div class="hint">1. Период и комнаты</div>
+      <div class="field"><label>С месяца</label><input type="month" id="tMonthFrom" value="2026-12"></div>
+      <div class="field"><label>По месяц</label><input type="month" id="tMonthTo" value="2026-12"></div>
+      <div class="field" style="align-items:flex-start">
+        <label style="padding-top:4px">Комнаты</label>
+        <textarea id="tRooms" style="min-height:44px">1-9, 21-25</textarea>
+      </div>
+      <div class="hint">Формат: диапазоны через запятую. Пример: 1-9, 21-25, 30, 42-45</div>
+      <div class="field"><label>Последняя дежурившая комната</label><input type="number" id="tLastRoom" value="22" step="1"></div>
+      <div class="field"><label>Дата последнего деж.</label><input type="date" id="tLastDate" value="2025-12-29"></div>
+      <div class="field"><label>Порядок комнат</label>
+        <select id="tOrder">
+          <option value="forward" selected>Прямой</option>
+          <option value="backward">Обратный</option>
+        </select>
+      </div>
+
+      <div class="hint" style="margin-top:8px">2. Предпросмотр</div>
+      <div class="field"><label>Месяц предпросмотра</label><input type="month" id="tPreviewMonth" value="2026-12"></div>
+      <div class="field"><label>Масштаб превью</label><input type="number" id="pScale" value="1.1" step="0.05"><span class="unit">×</span></div>
+      <div class="field"><label>Строк на превью</label>
+        <select id="pRows"><option value="5" selected>5</option><option value="6">6</option></select>
+      </div>
+      <div class="field"><label>Только 6-строчный формат</label>
+        <input type="checkbox" id="pAlwaysSix">
+      </div>
+
+      <div class="hint" style="margin-top:8px">3. Формат листа</div>
+      <div class="field"><label>Стандартный</label>
+        <select id="pPageFormat">
+          <option value="A4-l">A4 альбомная (297×210)</option>
+          <option value="A4-p">A4 книжная (210×297)</option>
+          <option value="A3-l">A3 альбомная (420×297)</option>
+          <option value="A3-p">A3 книжная (297×420)</option>
+          <option value="A5-l">A5 альбомная (210×148)</option>
+          <option value="A5-p">A5 книжная (148×210)</option>
+          <option value="custom" selected>Свой</option>
+        </select>
+      </div>
+      <div class="row2">
+        <div><div class="field"><label>Ширина</label><input type="number" id="pPageW" value="297" step="0.1"><span class="unit">мм</span></div></div>
+        <div><div class="field"><label>Высота</label><input type="number" id="pPageH" value="210" step="0.1"><span class="unit">мм</span></div></div>
+      </div>
+    </div>
+  </details>
+
+  <!-- ============ СЕТКА ============ -->
+  <details>
+    <summary>Сетка</summary>
+    <div class="details-body">
+      <div class="field"><label>Отступ сверху</label><input type="number" id="pTopMargin" value="15.9" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Отступ слева/справа</label><input type="number" id="pSideMargin" value="0" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Зазор колонок</label><input type="number" id="pColGap" value="0" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>rowGap (5 строк)</label><input type="number" id="pRowGap5" value="11.5" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>rowGap (6 строк)</label><input type="number" id="pRowGap6" value="6" step="0.5"><span class="unit">мм</span></div>
+    </div>
+  </details>
+
+  <!-- ============ ДАТЫ ============ -->
+  <details>
+    <summary>Даты</summary>
+    <div class="details-body">
+      <div class="field"><label>Высота</label><input type="number" id="pDateH" value="18.3" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Шрифт</label><select id="pDateFont"></select></div>
+      <div class="field"><label>Размер</label><input type="number" id="pDateSize" value="48.5" step="0.5"><span class="unit">pt</span></div>
+      <div class="field"><label>Смещение X</label><input type="number" id="pDateDX" value="0" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Смещение Y</label><input type="number" id="pDateDY" value="3.5" step="0.1"><span class="unit">мм</span></div>
+    </div>
+  </details>
+
+  <!-- ============ НОМЕРА КОМНАТ ============ -->
+  <details>
+    <summary>Номера комнат</summary>
+    <div class="details-body">
+      <div class="field"><label>Высота (может быть &lt; 0)</label><input type="number" id="pRoomH" value="-0.8" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Шрифт</label><select id="pRoomFont"></select></div>
+      <div class="field"><label>Размер</label><input type="number" id="pRoomSize" value="18" step="0.5"><span class="unit">pt</span></div>
+      <div class="field"><label>Смещение X</label><input type="number" id="pRoomDX" value="0" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Смещение Y</label><input type="number" id="pRoomDY" value="3.4" step="0.1"><span class="unit">мм</span></div>
+      <div class="hint">Шаблон номера (НОМЕР = сам номер):</div>
+      <div class="field"><label>Доп. символы</label><input type="text" id="pRoomTemplate" value="НОМЕР"></div>
+      <div class="field"><label>Отображать этаж</label><input type="checkbox" id="pRoomShowFloor"></div>
+      <div class="field"><label>Этаж</label><input type="number" id="pRoomFloor" value="0" step="1"></div>
+      <div class="hint">
+        Если «Отображать этаж» включено — все номера выравниваются по длине
+        (1 → 001, 13 → 013), и впереди добавляется номер этажа (этаж 4: 401, 417).
+      </div>
+    </div>
+  </details>
+
+  <!-- ============ ЛИНИИ ============ -->
+  <details>
+    <summary>Разделительные линии</summary>
+    <div class="details-body">
+      <div class="field"><label>Толщина (верт.)</label><input type="number" id="pLineW" value="0.5" step="0.05"><span class="unit">мм</span></div>
+      <div class="field"><label>Верх (от верха стр.)</label><input type="number" id="pLineTop" value="11.6" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Низ (от верха стр.)</label><input type="number" id="pLineBottom" value="155.6" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Горизонтальные линии</label><input type="checkbox" id="pLineHoriz"></div>
+      <div class="field"><label>Толщина (гориз.)</label><input type="number" id="pLineHorizW" value="0.5" step="0.05"><span class="unit">мм</span></div>
+      <div class="field"><label>Отступ от краёв (гориз.)</label><input type="number" id="pLineHorizPad" value="0" step="0.5"><span class="unit">мм</span></div>
+    </div>
+  </details>
+
+  <!-- ============ ДНИ НЕДЕЛИ ============ -->
+  <details>
+    <summary>Дни недели</summary>
+    <div class="details-body">
+      <div class="field"><label>Шрифт</label><select id="pWdFont"></select></div>
+      <div class="field"><label>Форма</label>
+        <select id="pWdForm">
+          <option value="short" selected>Сокращённая (Пн)</option>
+          <option value="full">Полная (Понедельник)</option>
+        </select>
+      </div>
+      <div class="field"><label>Регистр</label>
+        <select id="pWdCase">
+          <option value="upper" selected>ВЕРХНИЙ</option>
+          <option value="lower">нижний</option>
+          <option value="capitalize">С заглавной</option>
+        </select>
+      </div>
+      <div class="field"><label>Размер</label><input type="number" id="pWdSize" value="15" step="0.5"><span class="unit">pt</span></div>
+      <div class="field"><label>Отступ слева</label><input type="number" id="pWdPadLeft" value="3.8" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Базовая Y (от низа стр.)</label><input type="number" id="pWdY" value="54.4" step="0.1"><span class="unit">мм</span></div>
+    </div>
+  </details>
+
+  <!-- ============ НИЖНЯЯ ПЛАШКА ============ -->
+  <details>
+    <summary>Нижняя плашка</summary>
+    <div class="details-body">
+      <div class="field"><label>Высота</label><input type="number" id="pBarH" value="44.2" step="0.1"><span class="unit">мм</span></div>
+
+      <div class="hint">Строка 1</div>
+      <div class="field"><label>Текст</label><input type="text" id="pBarLine1" value="График дежурств"></div>
+      <div class="field"><label>Шрифт</label><select id="pBarLine1Font"></select></div>
+      <div class="field"><label>Размер</label><input type="number" id="pBarLine1Size" value="29" step="0.5"><span class="unit">pt</span></div>
+
+      <div class="hint">Строка 2</div>
+      <div class="field"><label>Текст (шаблон)</label><input type="text" id="pBarLine2" value="МЕСЯЦ ГОД"></div>
+      <div class="field"><label>Шрифт</label><select id="pBarLine2Font"></select></div>
+      <div class="field"><label>Размер</label><input type="number" id="pBarLine2Size" value="37" step="0.5"><span class="unit">pt</span></div>
+
+      <div class="hint">Положение блока</div>
+      <div class="field"><label>Отступ от левого края</label><input type="number" id="pBarDX" value="44.8" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Смещение по вертикали</label><input type="number" id="pBarDY" value="-0.3" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Межстрочный интервал</label><input type="number" id="pBarLineGap" value="1.25" step="0.05"><span class="unit">×</span></div>
+
+      <div class="hint">Обтравочная маска</div>
+      <div class="field"><label>Обрезать изображения по плашке</label>
+        <input type="checkbox" id="pBarClip" checked>
+      </div>
+    </div>
+  </details>
+
+  <!-- ============ ИЗОБРАЖЕНИЯ ============ -->
+  <details open>
+    <summary>Изображения</summary>
+    <div class="details-body">
+      <div class="btns" style="margin-bottom:8px">
+        <button id="btnAddImage" class="secondary" style="flex:1">+ Добавить изображение</button>
+      </div>
+      <div id="imagesList"></div>
+      <div class="hint">Перетаскивайте картинки на превью курсором.</div>
+    </div>
+  </details>
+
+  <!-- ============ КАНАЛ ============ -->
+  <details>
+    <summary>Канал создателя генератора</summary>
+    <div class="details-body">
+      <div class="field"><label>Текст</label><span style="flex:2;font-size:12px;color:#804A94;font-weight:600">t.me/ARTemaARTema</span></div>
+      <div class="field"><label>Шрифт</label><select id="pArtFont"></select></div>
+      <div class="field"><label>Размер</label><input type="number" id="pArtSize" value="12" step="0.5"><span class="unit">pt</span></div>
+      <div class="field"><label>Высота плашки</label><input type="number" id="pArtH" value="10.6" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Отступ справа</label><input type="number" id="pArtRight" value="7.5" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Отступ сверху</label><input type="number" id="pArtTop" value="0.5" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Внутр. отступ X</label><input type="number" id="pArtPadX" value="2" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Цвет текста</label><input type="color" id="pArtColor" value="#804A94"></div>
+      <div class="field"><label>Прозрачность</label><input type="range" id="pArtOpacity" min="0" max="100" value="40"><span id="pArtOpacityVal" style="width:34px;font-size:11px;color:#888;text-align:right">40%</span></div>
+      <div class="muted">Да, ты можешь выкрутить в ноль. Я не буду этому противодействовать. Но мне будет грустно.</div>
+    </div>
+  </details>
+
+  <!-- ============ ЦВЕТА ============ -->
+  <details>
+    <summary>Цвета</summary>
+    <div class="details-body">
+      <div class="colorGroup">
+        <div class="hint">Даты</div>
+        <div class="field"><label>Текущий месяц</label><input type="color" id="pDateColor" value="#010101"></div>
+        <div class="field"><label>Соседний месяц</label><input type="color" id="pDateColorOther" value="#B2B2B2"></div>
+      </div>
+      <div class="colorGroup">
+        <div class="hint">Номера комнат</div>
+        <div class="field"><label>Текущий месяц</label><input type="color" id="pRoomColor" value="#804A94"></div>
+        <div class="field"><label>Соседний месяц</label><input type="color" id="pRoomColorOther" value="#B2B2B2"></div>
+      </div>
+      <div class="colorGroup">
+        <div class="hint">Нижняя плашка</div>
+        <div class="field"><label>Фон</label><input type="color" id="pBarBg" value="#804A94"></div>
+        <div class="field"><label>Строка 1</label><input type="color" id="pBarLine1Color" value="#FFFFFF"></div>
+        <div class="field"><label>Строка 2</label><input type="color" id="pBarLine2Color" value="#FFFFFF"></div>
+      </div>
+      <div class="colorGroup">
+        <div class="hint">Дни недели</div>
+        <div class="field"><label>Цвет</label><input type="color" id="pWdColor" value="#010101"></div>
+      </div>
+      <div class="colorGroup">
+        <div class="hint">Линии</div>
+        <div class="field"><label>Цвет</label><input type="color" id="pLineColor" value="#010101"></div>
+      </div>
+    </div>
+  </details>
+
+  <!-- ============ ШРИФТЫ ============ -->
+  <details>
+    <summary>Шрифты</summary>
+    <div class="details-body">
+      <div class="fontList" id="fontList"></div>
+      <div class="btns" style="margin-top:8px">
+        <button id="btnFontAdd" class="secondary" style="flex:1">+ Добавить шрифт</button>
+      </div>
+      <div class="hint">
+        Шрифты загружаются из папки <code>fonts/</code> согласно <code>fonts/index.json</code>.
+      </div>
+    </div>
+  </details>
+
+  <div id="log"></div>
+</div>
+
+<div id="previewWrap">
+  <div class="pagePreview" id="preview"></div>
+</div>
+
+<script>
+  // ⚠️ ЗАМЕНИТЕ на свой URL. Слэш в конце обязателен!
+  window.APP_BASE_URL = "https://temirsheyder.github.io/Duty-Schedule-Gen/";
+</script>
+
 <script>
 // ============================================================
 //  Базовый URL и константы
@@ -45,11 +409,9 @@ async function loadFontsManifest() {
   if (!resp.ok) throw new Error("Не удалось загрузить " + url + " (" + resp.status + ")");
   const data = await resp.json();
 
-  // Встроенные (не требуют TTF)
   (data.builtin || []).forEach(b => {
     FONTS[b.key] = { label: b.label, builtin: true, weight: 400 };
   });
-  // Пользовательские TTF
   (data.fonts || []).forEach(f => {
     FONTS[f.key] = {
       label: f.label,
@@ -110,7 +472,7 @@ function refreshFontSelects() {
       sel.appendChild(opt);
     });
     if (cur && FONTS[cur]) sel.value = cur;
-    else sel.value = Object.keys(FONTS)[0];
+    else if (Object.keys(FONTS).length) sel.value = Object.keys(FONTS)[0];
   });
 }
 
@@ -128,8 +490,6 @@ function refreshFontList() {
   });
 }
 
-// Кнопка «+ Добавить шрифт» теперь не имеет смысла как «файл в браузере»,
-// но можно оставить возможность локального добавления (не сохраняется в репо).
 document.getElementById("btnFontAdd").addEventListener("click", () => {
   const input = document.createElement("input");
   input.type = "file";
@@ -151,7 +511,7 @@ document.getElementById("btnFontAdd").addEventListener("click", () => {
 });
 
 // ============================================================
-//  Изображения (dataUrl заполняется при загрузке из файла)
+//  Изображения
 // ============================================================
 let images = [];
 let imgCounter = 1;
@@ -228,9 +588,6 @@ document.getElementById("btnAddImage").addEventListener("click", () => {
   renderImagesList();
 });
 
-// ============================================================
-//  Загрузка изображений по имени файла
-// ============================================================
 async function resolveImage(imgCfg) {
   if (imgCfg.dataUrl) return imgCfg.dataUrl;
   if (!imgCfg.file) return null;
@@ -379,9 +736,6 @@ function readParams() {
   };
 }
 
-// ============================================================
-//  applyParams  (значения приходят в мм и pt, как в UI)
-// ============================================================
 function applyParams(P) {
   const setNum = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
   const setStr = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
@@ -453,7 +807,6 @@ function applyParams(P) {
     setStr("tOrder", P.test.order || "forward");
     setStr("tPreviewMonth", P.test.previewMonth || P.test.monthFrom || P.test.yearMonthFrom);
   }
-  // Изображения
   if (P.images && Array.isArray(P.images)) {
     images = P.images.map((im, i) => ({
       id: im.id || ("img" + (i+1)),
@@ -978,7 +1331,7 @@ async function exportPng(scaleFactor) {
 // ============================================================
 //  Загрузка шаблонов
 // ============================================================
-let savedTemplates = {};  // id -> { label, data }
+let savedTemplates = {};
 
 async function loadTemplatesManifest() {
   const url = TEMPLATES_URL + "index.json";
@@ -1008,18 +1361,14 @@ async function applyTemplateById(id) {
   const tpl = savedTemplates[id];
   if (!tpl) return;
 
-  // 1. Применяем параметры
   applyParams(tpl.data);
 
-  // 2. Дозагружаем изображения, у которых есть file
   if (Array.isArray(tpl.data.images)) {
-    // предварительно заполним dataUrl из файлов
     const resolved = await preloadImages(tpl.data.images);
     images = resolved;
     renderImagesList();
   }
 
-  // 3. Гарантируем, что все шрифты, упомянутые в шаблоне, загружены
   const usedFonts = new Set();
   const collectFont = obj => {
     if (!obj || typeof obj !== "object") return;
@@ -1086,7 +1435,6 @@ document.getElementById("btnCopy").addEventListener("click", () => {
     test: P.test,
     images: images.map(im => ({
       id: im.id, name: im.name,
-      // ВАЖНО: сохраняем имя файла, а не dataUrl
       file: im.file || null,
       x: im.x, y: im.y, scale: im.scale, baseW: im.baseW,
       opacity: im.opacity, blend: im.blend,
@@ -1107,8 +1455,6 @@ document.getElementById("btnPng").addEventListener("click", () => {
   if ([1,2,3,4].includes(s)) exportPng(s);
 });
 
-// Кнопка «Сохранить шаблон» теперь сохраняет на сервер — но в браузере
-// без бэкенда это невозможно. Оставим как «показать JSON».
 document.getElementById("btnTplSave").addEventListener("click", () => {
   const P = readParams();
   const out = {
@@ -1148,7 +1494,6 @@ document.getElementById("btnTplSave").addEventListener("click", () => {
     })),
   };
   const json = JSON.stringify(out, null, 2);
-  // Скачиваем файл, чтобы его можно было положить в /templates/
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([json], { type: "application/json" }));
   a.download = "template.json";
@@ -1156,14 +1501,13 @@ document.getElementById("btnTplSave").addEventListener("click", () => {
   log("Шаблон сохранён в файл template.json — положите его в /templates/ и добавьте в index.json");
 });
 
-document.getElementById("btnTplApply").addEventListener("click", () => {
+document.getElementById("btnTplApply").addEventListener("click", async () => {
   const txt = document.getElementById("tplPaste").value.trim();
   if (!txt) return;
   try {
     const P = JSON.parse(txt);
     applyParams(P);
     if (Array.isArray(P.images)) {
-      // если в JSON есть dataUrl — используем их, иначе — файлы
       images = P.images.map((im, i) => ({
         id: im.id || ("img"+(i+1)),
         name: im.name || ("Изображение "+(i+1)),
@@ -1174,7 +1518,6 @@ document.getElementById("btnTplApply").addEventListener("click", () => {
         bright: im.bright ?? 0, contrast: im.contrast ?? 100, sat: im.sat ?? 100,
         clip: im.clip !== false,
       }));
-      // дозагрузка
       images = await preloadImages(images);
       renderImagesList();
     }
@@ -1186,7 +1529,6 @@ document.getElementById("btnTplApply").addEventListener("click", () => {
   }
 });
 
-// Формат листа
 document.getElementById("pPageFormat").addEventListener("change", e => {
   const v = e.target.value;
   if (v === "custom") return;
@@ -1224,7 +1566,6 @@ document.getElementById("panel").addEventListener("change", () => { if (autoUpda
     log("Ошибка загрузки шаблонов: " + e.message, "err");
   }
 
-  // Автоматически применим первый доступный шаблон (если есть)
   const firstTplId = Object.keys(savedTemplates)[0];
   if (firstTplId) {
     await applyTemplateById(firstTplId);
@@ -1233,3 +1574,6 @@ document.getElementById("panel").addEventListener("change", () => { if (autoUpda
   }
 })();
 </script>
+
+</body>
+</html>
