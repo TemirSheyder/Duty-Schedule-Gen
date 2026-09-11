@@ -1,1 +1,5 @@
-
+{
+  "templates": [
+    { "id": "tpl11", "label": "Шаблон №11", "file": "tpl11.json" }
+  ]
+}
