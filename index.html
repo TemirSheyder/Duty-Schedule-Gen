@@ -184,7 +184,8 @@
     <summary>Даты</summary>
     <div class="details-body">
       <div class="field"><label>Высота</label><input type="number" id="pDateH" value="18.3" step="0.1"><span class="unit">мм</span></div>
-      <div class="field"><label>Шрифт</label><select id="pDateFont"></select></div>
+      <div class="field"><label>Шрифт (текущий)</label><select id="pDateFont"></select></div>
+      <div class="field"><label>Шрифт (соседний)</label><select id="pDateFontOther"></select></div>
       <div class="field"><label>Размер</label><input type="number" id="pDateSize" value="48.5" step="0.5"><span class="unit">pt</span></div>
       <div class="field"><label>Смещение X</label><input type="number" id="pDateDX" value="0" step="0.1"><span class="unit">мм</span></div>
       <div class="field"><label>Смещение Y</label><input type="number" id="pDateDY" value="3.5" step="0.1"><span class="unit">мм</span></div>
@@ -196,7 +197,8 @@
     <summary>Номера комнат</summary>
     <div class="details-body">
       <div class="field"><label>Высота (может быть &lt; 0)</label><input type="number" id="pRoomH" value="-0.8" step="0.1"><span class="unit">мм</span></div>
-      <div class="field"><label>Шрифт</label><select id="pRoomFont"></select></div>
+      <div class="field"><label>Шрифт (текущий)</label><select id="pRoomFont"></select></div>
+      <div class="field"><label>Шрифт (соседний)</label><select id="pRoomFontOther"></select></div>
       <div class="field"><label>Размер</label><input type="number" id="pRoomSize" value="18" step="0.5"><span class="unit">pt</span></div>
       <div class="field"><label>Смещение X</label><input type="number" id="pRoomDX" value="0" step="0.1"><span class="unit">мм</span></div>
       <div class="field"><label>Смещение Y</label><input type="number" id="pRoomDY" value="3.4" step="0.1"><span class="unit">мм</span></div>
@@ -368,7 +370,7 @@
 // ============================================================
 const BASE_URL = window.APP_BASE_URL || "";
 const FONTS_URL     = BASE_URL + "fonts/";
-const IMAGES_URL    = BASE_URL + "images/";
+const IMAGES_URL    = BASE_URL + "Images/";
 const TEMPLATES_URL = BASE_URL + "templates/";
 
 const MM = 2.834645669;
@@ -400,8 +402,8 @@ function clearLog() { document.getElementById("log").innerHTML = ""; }
 // ============================================================
 //  Реестр шрифтов
 // ============================================================
-const FONTS = {};          // key -> { label, url, weight, builtin }
-const FONT_BYTES = {};     // key -> ArrayBuffer
+const FONTS = {};
+const FONT_BYTES = {};
 
 async function loadFontsManifest() {
   const url = FONTS_URL + "index.json";
@@ -459,7 +461,7 @@ async function getFontBytes(key) {
 }
 
 function refreshFontSelects() {
-  const ids = ["pDateFont","pRoomFont","pWdFont","pBarLine1Font","pBarLine2Font","pArtFont"];
+  const ids = ["pDateFont","pDateFontOther","pRoomFont","pRoomFontOther","pWdFont","pBarLine1Font","pBarLine2Font","pArtFont"];
   ids.forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
@@ -683,12 +685,16 @@ function readParams() {
       rowGap5: mmv("pRowGap5"), rowGap6: mmv("pRowGap6"),
     },
     date: {
-      h: mmv("pDateH"), size: fsv("pDateSize"), font: str("pDateFont"),
+      h: mmv("pDateH"), size: fsv("pDateSize"),
+      font: str("pDateFont"),
+      fontOther: str("pDateFontOther"),
       color: color("pDateColor"), colorOther: color("pDateColorOther"),
       dx: mmv("pDateDX"), dy: mmv("pDateDY"),
     },
     room: {
-      h: mmv("pRoomH"), size: fsv("pRoomSize"), font: str("pRoomFont"),
+      h: mmv("pRoomH"), size: fsv("pRoomSize"),
+      font: str("pRoomFont"),
+      fontOther: str("pRoomFontOther"),
       color: color("pRoomColor"), colorOther: color("pRoomColorOther"),
       dx: mmv("pRoomDX"), dy: mmv("pRoomDY"),
       template: str("pRoomTemplate"),
@@ -755,12 +761,16 @@ function applyParams(P) {
     setNum("pRowGap5", P.grid.rowGap5); setNum("pRowGap6", P.grid.rowGap6);
   }
   if (P.date) {
-    setNum("pDateH", P.date.h); setNum("pDateSize", P.date.size); setStr("pDateFont", P.date.font);
+    setNum("pDateH", P.date.h); setNum("pDateSize", P.date.size);
+    setStr("pDateFont", P.date.font);
+    setStr("pDateFontOther", P.date.fontOther || P.date.font);
     setNum("pDateDX", P.date.dx); setNum("pDateDY", P.date.dy);
     setCol("pDateColor", P.date.color); setCol("pDateColorOther", P.date.colorOther);
   }
   if (P.room) {
-    setNum("pRoomH", P.room.h); setNum("pRoomSize", P.room.size); setStr("pRoomFont", P.room.font);
+    setNum("pRoomH", P.room.h); setNum("pRoomSize", P.room.size);
+    setStr("pRoomFont", P.room.font);
+    setStr("pRoomFontOther", P.room.fontOther || P.room.font);
     setNum("pRoomDX", P.room.dx); setNum("pRoomDY", P.room.dy);
     setStr("pRoomTemplate", P.room.template);
     setChk("pRoomShowFloor", P.room.showFloor);
@@ -1008,9 +1018,10 @@ async function render() {
     const dateStr = String(cellDate.getDate());
     const dateSize = P.date.size;
     const dateColor = isCurrent ? P.date.color : P.date.colorOther;
+    const dateFontKey = isCurrent ? P.date.font : (P.date.fontOther || P.date.font);
     const dateX = x0 + CELL_W / 2 + P.date.dx;
     const dateY = yTopDate - P.date.h / 2 + P.date.dy;
-    parts.push(`<text x="${X(dateX)}" y="${Y(dateY)}" font-family="${fontFamilyCss(P.date.font)}" font-size="${dateSize*scale}" font-weight="${isCurrent ? 500 : 300}" fill="${rgbCss(dateColor)}" text-anchor="middle" dominant-baseline="middle">${dateStr}</text>`);
+    parts.push(`<text x="${X(dateX)}" y="${Y(dateY)}" font-family="${fontFamilyCss(dateFontKey)}" font-size="${dateSize*scale}" font-weight="${isCurrent ? 500 : 300}" fill="${rgbCss(dateColor)}" text-anchor="middle" dominant-baseline="middle">${dateStr}</text>`);
 
     const key = cellDate.getFullYear() + "-" +
                 String(cellDate.getMonth()+1).padStart(2,"0") + "-" +
@@ -1020,9 +1031,10 @@ async function render() {
       const roomStr = formatRoom(room, P.room, rooms);
       const roomSize = P.room.size;
       const roomColor = isCurrent ? P.room.color : P.room.colorOther;
+      const roomFontKey = isCurrent ? P.room.font : (P.room.fontOther || P.room.font);
       const roomX = x0 + CELL_W / 2 + P.room.dx;
       const roomY = yTopRoom + P.room.h / 2 + P.room.dy;
-      parts.push(`<text x="${X(roomX)}" y="${Y(roomY)}" font-family="${fontFamilyCss(P.room.font)}" font-size="${roomSize*scale}" font-weight="${isCurrent ? 600 : 300}" fill="${rgbCss(roomColor)}" text-anchor="middle" dominant-baseline="middle">${roomStr}</text>`);
+      parts.push(`<text x="${X(roomX)}" y="${Y(roomY)}" font-family="${fontFamilyCss(roomFontKey)}" font-size="${roomSize*scale}" font-weight="${isCurrent ? 600 : 300}" fill="${rgbCss(roomColor)}" text-anchor="middle" dominant-baseline="middle">${roomStr}</text>`);
     }
   }
 
@@ -1134,12 +1146,14 @@ async function exportPdf() {
     return font;
   }
 
-  const fontDate     = await getFont(P.date.font);
-  const fontRoom     = await getFont(P.room.font);
-  const fontWd       = await getFont(P.weekday.font);
-  const fontBarLine1 = await getFont(P.bar.line1Font);
-  const fontBarLine2 = await getFont(P.bar.line2Font);
-  const fontArt      = await getFont(P.art.font);
+  const fontDate       = await getFont(P.date.font);
+  const fontDateOther  = await getFont(P.date.fontOther || P.date.font);
+  const fontRoom       = await getFont(P.room.font);
+  const fontRoomOther  = await getFont(P.room.fontOther || P.room.font);
+  const fontWd         = await getFont(P.weekday.font);
+  const fontBarLine1   = await getFont(P.bar.line1Font);
+  const fontBarLine2   = await getFont(P.bar.line2Font);
+  const fontArt        = await getFont(P.art.font);
 
   const PAGE_W = P.page.w, PAGE_H = P.page.h;
   const COLS = 7;
@@ -1218,11 +1232,12 @@ async function exportPdf() {
       const dateStr = String(cellDate.getDate());
       const dateSize = P.date.size;
       const dateColor = isCurrent ? P.date.color : P.date.colorOther;
-      const dateW = fontDate.widthOfTextAtSize(dateStr, dateSize);
+      const dateFont = isCurrent ? fontDate : fontDateOther;
+      const dateW = dateFont.widthOfTextAtSize(dateStr, dateSize);
       page.drawText(dateStr, {
         x: x0 + CELL_W/2 - dateW/2 + P.date.dx,
         y: yTopDate - P.date.h/2 + P.date.dy - dateSize * 0.35,
-        size: dateSize, font: fontDate,
+        size: dateSize, font: dateFont,
         color: rgb(dateColor.r, dateColor.g, dateColor.b),
       });
 
@@ -1234,11 +1249,12 @@ async function exportPdf() {
         const roomStr = formatRoom(room, P.room, rooms);
         const roomSize = P.room.size;
         const roomColor = isCurrent ? P.room.color : P.room.colorOther;
-        const roomW = fontRoom.widthOfTextAtSize(roomStr, roomSize);
+        const roomFont = isCurrent ? fontRoom : fontRoomOther;
+        const roomW = roomFont.widthOfTextAtSize(roomStr, roomSize);
         page.drawText(roomStr, {
           x: x0 + CELL_W/2 - roomW/2 + P.room.dx,
           y: yTopRoom + P.room.h/2 + P.room.dy - roomSize * 0.35,
-          size: roomSize, font: fontRoom,
+          size: roomSize, font: roomFont,
           color: rgb(roomColor.r, roomColor.g, roomColor.b),
         });
       }
@@ -1408,10 +1424,12 @@ document.getElementById("btnCopy").addEventListener("click", () => {
       topMargin: toMm(P.grid.topMargin), sideMargin: toMm(P.grid.sideMargin),
       colGap: toMm(P.grid.colGap),
       rowGap5: toMm(P.grid.rowGap5), rowGap6: toMm(P.grid.rowGap6) },
-    date: { h: toMm(P.date.h), size: P.date.size, font: P.date.font,
+    date: { h: toMm(P.date.h), size: P.date.size,
+      font: P.date.font, fontOther: P.date.fontOther,
       color: P.date.color, colorOther: P.date.colorOther,
       dx: toMm(P.date.dx), dy: toMm(P.date.dy) },
-    room: { h: toMm(P.room.h), size: P.room.size, font: P.room.font,
+    room: { h: toMm(P.room.h), size: P.room.size,
+      font: P.room.font, fontOther: P.room.fontOther,
       color: P.room.color, colorOther: P.room.colorOther,
       dx: toMm(P.room.dx), dy: toMm(P.room.dy),
       template: P.room.template, showFloor: P.room.showFloor, floor: P.room.floor },
@@ -1434,8 +1452,7 @@ document.getElementById("btnCopy").addEventListener("click", () => {
       horiz: P.line.horiz, horizW: toMm(P.line.horizW), horizPad: toMm(P.line.horizPad) },
     test: P.test,
     images: images.map(im => ({
-      id: im.id, name: im.name,
-      file: im.file || null,
+      id: im.id, name: im.name, file: im.file || null,
       x: im.x, y: im.y, scale: im.scale, baseW: im.baseW,
       opacity: im.opacity, blend: im.blend,
       bright: im.bright, contrast: im.contrast, sat: im.sat, clip: im.clip,
@@ -1463,10 +1480,12 @@ document.getElementById("btnTplSave").addEventListener("click", () => {
       topMargin: toMm(P.grid.topMargin), sideMargin: toMm(P.grid.sideMargin),
       colGap: toMm(P.grid.colGap),
       rowGap5: toMm(P.grid.rowGap5), rowGap6: toMm(P.grid.rowGap6) },
-    date: { h: toMm(P.date.h), size: P.date.size, font: P.date.font,
+    date: { h: toMm(P.date.h), size: P.date.size,
+      font: P.date.font, fontOther: P.date.fontOther,
       color: P.date.color, colorOther: P.date.colorOther,
       dx: toMm(P.date.dx), dy: toMm(P.date.dy) },
-    room: { h: toMm(P.room.h), size: P.room.size, font: P.room.font,
+    room: { h: toMm(P.room.h), size: P.room.size,
+      font: P.room.font, fontOther: P.room.fontOther,
       color: P.room.color, colorOther: P.room.colorOther,
       dx: toMm(P.room.dx), dy: toMm(P.room.dy),
       template: P.room.template, showFloor: P.room.showFloor, floor: P.room.floor },
