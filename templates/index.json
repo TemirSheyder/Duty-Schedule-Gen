@@ -1,6 +1,6 @@
 {
   "templates": [
     { "id": "tpl11", "label": "Шаблон №11",  "file": "tpl11.json" },
-    { "id": "my",    "label": "Мой шаблон",  "file": "my-template.json" }
+    { "id": "tmpl6", "label": "Шаблон №6",   "file": "tmpl6.json" }
   ]
 }
