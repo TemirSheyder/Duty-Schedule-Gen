@@ -1,7 +1,7 @@
 {
   "page": {
     "w": 297,
-    "h": 210
+    "h": 210,
   },
   "grid": {
     "rows": 5,
@@ -119,18 +119,5 @@
     "horizW": 0.1,
     "horizPad": 0
   },
-  "test": {
-    "monthFrom": "2026-12",
-    "monthTo": "2026-12",
-    "rooms": "1-9, 21-25",
-    "lastRoom": 22,
-    "lastDate": "2025-12-29",
-    "order": "forward",
-    "previewMonth": "2026-12"
-  },
-
-  "images": [
-    {
-      
-    }
+  "images": []
 }
