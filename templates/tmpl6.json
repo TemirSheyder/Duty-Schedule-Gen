@@ -129,7 +129,7 @@
     "order": "forward",
     "previewMonth": "2026-12"
   },
-  "Images": [
+  "images": [
   {
     "id": "img1",
     "name": "Логотип",
