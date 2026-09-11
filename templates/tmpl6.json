@@ -129,22 +129,38 @@
     "order": "forward",
     "previewMonth": "2026-12"
   },
-  "images": [
-    {
-      "id": "img1",
-      "name": "Логотип",
-      "file": null,
-      "x": 62.409090913244064,
-      "y": 63.00909091324407,
-      "scale": 3.05,
-      "baseW": 23,
-      "opacity": 1,
-      "blend": "normal",
-      "bright": 0,
-      "contrast": 100,
-      "sat": 100,
-      "clip": true
-    },
+  "Images": [
+  {
+    "id": "img1",
+    "name": "Логотип",
+    "file": "SS11_Logo.png",
+    "x": 22,
+    "y": 22.6,
+    "scale": 1,
+    "baseW": 23,
+    "opacity": 1,
+    "blend": "normal",
+    "bright": 0,
+    "contrast": 100,
+    "sat": 100,
+    "clip": true
+  },
+  {
+    "id": "img2",
+    "name": "Фон",
+    "file": "SS11_Pattern.png",
+    "x": 226.3,
+    "y": 21.8,
+    "scale": 1,
+    "baseW": 144,
+    "opacity": 1,
+    "blend": "normal",
+    "bright": 0,
+    "contrast": 100,
+    "sat": 100,
+    "clip": true
+  }
+]
     {
       "id": "img2",
       "name": "Фон",
