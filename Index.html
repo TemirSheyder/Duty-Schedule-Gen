@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Генератор графиков дежурств</title>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, Arial, sans-serif; font-size: 13px;
+    display: flex; height: 100vh; overflow: hidden; background: #f0f0f0;
+  }
+  #panel {
+    width: 460px; min-width: 460px; height: 100vh;
+    overflow-y: auto; background: #fff; border-right: 1px solid #ccc;
+    padding: 10px;
+  }
+  #panel h1 { font-size: 16px; margin: 0 0 12px; }
+  details { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 8px; background: #fff; }
+  details[open] { background: #fefefe; }
+  summary {
+    cursor: pointer; padding: 8px 10px; font-weight: bold; font-size: 12px;
+    color: #804A94; user-select: none; border-radius: 6px;
+    background: #faf7fc;
+  }
+  summary:hover { background: #f3eafb; }
+  details[open] summary { border-bottom: 1px solid #eee; border-radius: 6px 6px 0 0; }
+  .details-body { padding: 8px 10px 10px; }
+  .field { display: flex; align-items: center; margin: 4px 0; gap: 6px; }
+  .field label { flex: 1; font-size: 12px; color: #333; }
+  .field input[type="number"] { width: 76px; padding: 3px 5px; font-size: 12px; text-align: right; }
+  .field input[type="text"] { flex: 2; padding: 3px 5px; font-size: 12px; }
+  .field input[type="color"] { width: 40px; height: 24px; padding: 0; border: 1px solid #ccc; }
+  .field input[type="range"] { flex: 2; }
+  .field select { padding: 3px 5px; font-size: 12px; flex: 2; }
+  .field textarea { flex: 2; padding: 4px 5px; font-size: 11px; font-family: monospace; min-height: 60px; }
+  .unit { font-size: 11px; color: #888; width: 24px; }
+  .btns { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  button {
+    flex: 1; padding: 7px 10px; font-size: 12px; cursor: pointer;
+    border: none; border-radius: 4px; background: #804A94; color: #fff;
+  }
+  button.secondary { background: #555; }
+  button.mini { flex: none; padding: 3px 8px; font-size: 11px; }
+  button:hover { opacity: 0.9; }
+  #log {
+    background: #fafafa; padding: 6px; border-radius: 4px; font-family: monospace;
+    font-size: 11px; max-height: 140px; overflow: auto; white-space: pre-wrap;
+    margin-top: 8px; border: 1px solid #eee;
+  }
+  #previewWrap {
+    flex: 1; height: 100vh; overflow: auto; padding: 20px;
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
+  }
+  .pagePreview {
+    background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    position: relative;
+  }
+  .pagePreview svg { display: block; }
+  .hint { font-size: 11px; color: #888; margin: 4px 0; }
+  .colorGroup { background: #f9f9f9; border-radius: 4px; padding: 6px 8px; margin: 4px 0; }
+  .colorGroup > .field { margin: 2px 0; }
+  .dragHint { font-size: 11px; color: #804A94; margin-top: 4px; font-style: italic; }
+  .row2 { display: flex; gap: 8px; }
+  .row2 > div { flex: 1; }
+  .fontList { font-size: 11px; }
+  .fontItem { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid #eee; }
+  .fontItem:last-child { border-bottom: none; }
+  .fontItem .name { flex: 1; }
+  .muted { color: #804A94; font-style: italic; font-size: 11px; margin-top: 4px; }
+  .imgCard {
+    border: 1px solid #e0e0e0; border-radius: 4px; padding: 6px 8px;
+    margin: 6px 0; background: #fafafa;
+  }
+  .imgCard .imgHeader {
+    display: flex; align-items: center; gap: 6px; font-size: 12px;
+    font-weight: bold; color: #555; margin-bottom: 4px;
+  }
+  .imgCard .imgHeader .name { flex: 1; }
+</style>
+</head>
+<body>
+
+<div id="panel">
+  <h1>Генератор графиков дежурств</h1>
+
+  <div class="btns">
+    <button id="btnRefresh">Обновить</button>
+    <button id="btnAuto" class="secondary">Авто: ВКЛ</button>
+  </div>
+  <div class="btns">
+    <button id="btnCopy" class="secondary" style="flex:2">Скопировать параметры шаблона</button>
+    <button id="btnPdf" class="secondary">PDF</button>
+    <button id="btnPng" class="secondary">PNG</button>
+  </div>
+
+  <!-- ============ ШАБЛОНЫ ============ -->
+  <details open>
+    <summary>Использовать шаблон</summary>
+    <div class="details-body">
+      <div class="field">
+        <label>Готовые</label>
+        <select id="tplSelect">
+          <option value="">— выбрать —</option>
+          <option value="tpl11">Шаблон №11</option>
+        </select>
+        <button class="mini secondary" id="btnTplSave">+ Сохр.</button>
+      </div>
+      <div class="field" style="align-items:flex-start">
+        <label style="padding-top:4px">Вставить</label>
+        <textarea id="tplPaste" placeholder="Вставьте JSON сюда и нажмите «Применить»"></textarea>
+      </div>
+      <div class="btns" style="margin:0">
+        <button class="secondary mini" id="btnTplApply" style="flex:1">Применить JSON</button>
+      </div>
+      <div class="hint">После применения поле вставки очищается.</div>
+    </div>
+  </details>
+
+  <!-- ============ НАСТРОЙКИ ============ -->
+  <details open>
+    <summary>Настройки</summary>
+    <div class="details-body">
+      <div class="hint">1. Период и комнаты</div>
+      <div class="field"><label>С месяца</label><input type="month" id="tMonthFrom" value="2026-12"></div>
+      <div class="field"><label>По месяц</label><input type="month" id="tMonthTo" value="2026-12"></div>
+      <div class="field" style="align-items:flex-start">
+        <label style="padding-top:4px">Комнаты</label>
+        <textarea id="tRooms" style="min-height:44px">1-9, 21-25</textarea>
+      </div>
+      <div class="hint">Формат: диапазоны через запятую. Пример: 1-9, 21-25, 30, 42-45</div>
+      <div class="field"><label>Последняя дежурившая комната</label><input type="number" id="tLastRoom" value="22" step="1"></div>
+      <div class="field"><label>Дата последнего деж.</label><input type="date" id="tLastDate" value="2025-12-29"></div>
+      <div class="field"><label>Порядок комнат</label>
+        <select id="tOrder">
+          <option value="forward" selected>Прямой</option>
+          <option value="backward">Обратный</option>
+        </select>
+      </div>
+
+      <div class="hint" style="margin-top:8px">2. Предпросмотр</div>
+      <div class="field"><label>Месяц предпросмотра</label><input type="month" id="tPreviewMonth" value="2026-12"></div>
+      <div class="field"><label>Масштаб превью</label><input type="number" id="pScale" value="1.1" step="0.05"><span class="unit">×</span></div>
+      <div class="field"><label>Строк на превью</label>
+        <select id="pRows"><option value="5" selected>5</option><option value="6">6</option></select>
+      </div>
+      <div class="field"><label>Только 6-строчный формат</label>
+        <input type="checkbox" id="pAlwaysSix">
+      </div>
+
+      <div class="hint" style="margin-top:8px">3. Формат листа</div>
+      <div class="field"><label>Стандартный</label>
+        <select id="pPageFormat">
+          <option value="A4-l">A4 альбомная (297×210)</option>
+          <option value="A4-p">A4 книжная (210×297)</option>
+          <option value="A3-l">A3 альбомная (420×297)</option>
+          <option value="A3-p">A3 книжная (297×420)</option>
+          <option value="A5-l">A5 альбомная (210×148)</option>
+          <option value="A5-p">A5 книжная (148×210)</option>
+          <option value="custom" selected>Свой</option>
+        </select>
+      </div>
+      <div class="row2">
+        <div><div class="field"><label>Ширина</label><input type="number" id="pPageW" value="297" step="0.1"><span class="unit">мм</span></div></div>
+        <div><div class="field"><label>Высота</label><input type="number" id="pPageH" value="210" step="0.1"><span class="unit">мм</span></div></div>
+      </div>
+    </div>
+  </details>
+
+  <!-- ============ СЕТКА ============ -->
+  <details>
+    <summary>Сетка</summary>
+    <div class="details-body">
+      <div class="field"><label>Отступ сверху</label><input type="number" id="pTopMargin" value="15.9" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Отступ слева/справа</label><input type="number" id="pSideMargin" value="0" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Зазор колонок</label><input type="number" id="pColGap" value="0" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>rowGap (5 строк)</label><input type="number" id="pRowGap5" value="11.5" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>rowGap (6 строк)</label><input type="number" id="pRowGap6" value="6" step="0.5"><span class="unit">мм</span></div>
+    </div>
+  </details>
+
+  <!-- ============ ДАТЫ ============ -->
+  <details>
+    <summary>Даты</summary>
+    <div class="details-body">
+      <div class="field"><label>Высота</label><input type="number" id="pDateH" value="18.3" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Шрифт</label><select id="pDateFont"></select></div>
+      <div class="field"><label>Размер</label><input type="number" id="pDateSize" value="48.5" step="0.5"><span class="unit">pt</span></div>
+      <div class="field"><label>Смещение X</label><input type="number" id="pDateDX" value="0" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Смещение Y</label><input type="number" id="pDateDY" value="3.5" step="0.1"><span class="unit">мм</span></div>
+    </div>
+  </details>
+
+  <!-- ============ НОМЕРА КОМНАТ ============ -->
+  <details>
+    <summary>Номера комнат</summary>
+    <div class="details-body">
+      <div class="field"><label>Высота (может быть &lt; 0)</label><input type="number" id="pRoomH" value="-0.8" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Шрифт</label><select id="pRoomFont"></select></div>
+      <div class="field"><label>Размер</label><input type="number" id="pRoomSize" value="18" step="0.5"><span class="unit">pt</span></div>
+      <div class="field"><label>Смещение X</label><input type="number" id="pRoomDX" value="0" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Смещение Y</label><input type="number" id="pRoomDY" value="3.4" step="0.1"><span class="unit">мм</span></div>
+      <div class="hint">Шаблон номера (НОМЕР = сам номер):</div>
+      <div class="field"><label>Доп. символы</label><input type="text" id="pRoomTemplate" value="НОМЕР"></div>
+      <div class="field"><label>Отображать этаж</label><input type="checkbox" id="pRoomShowFloor"></div>
+      <div class="field"><label>Этаж</label><input type="number" id="pRoomFloor" value="0" step="1"></div>
+      <div class="hint">
+        Если «Отображать этаж» включено — все номера выравниваются по длине
+        (1 → 001, 13 → 013), и впереди добавляется номер этажа (этаж 4: 401, 417).
+      </div>
+    </div>
+  </details>
+
+  <!-- ============ ЛИНИИ ============ -->
+  <details>
+    <summary>Разделительные линии</summary>
+    <div class="details-body">
+      <div class="field"><label>Толщина (верт.)</label><input type="number" id="pLineW" value="0.5" step="0.05"><span class="unit">мм</span></div>
+      <div class="field"><label>Верх (от верха стр.)</label><input type="number" id="pLineTop" value="11.6" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Низ (от верха стр.)</label><input type="number" id="pLineBottom" value="155.6" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Горизонтальные линии</label><input type="checkbox" id="pLineHoriz"></div>
+      <div class="field"><label>Толщина (гориз.)</label><input type="number" id="pLineHorizW" value="0.5" step="0.05"><span class="unit">мм</span></div>
+      <div class="field"><label>Отступ от краёв (гориз.)</label><input type="number" id="pLineHorizPad" value="0" step="0.5"><span class="unit">мм</span></div>
+    </div>
+  </details>
+
+  <!-- ============ ДНИ НЕДЕЛИ ============ -->
+  <details>
+    <summary>Дни недели</summary>
+    <div class="details-body">
+      <div class="field"><label>Шрифт</label><select id="pWdFont"></select></div>
+      <div class="field"><label>Форма</label>
+        <select id="pWdForm">
+          <option value="short" selected>Сокращённая (Пн)</option>
+          <option value="full">Полная (Понедельник)</option>
+        </select>
+      </div>
+      <div class="field"><label>Регистр</label>
+        <select id="pWdCase">
+          <option value="upper" selected>ВЕРХНИЙ</option>
+          <option value="lower">нижний</option>
+          <option value="capitalize">С заглавной</option>
+        </select>
+      </div>
+      <div class="field"><label>Размер</label><input type="number" id="pWdSize" value="15" step="0.5"><span class="unit">pt</span></div>
+      <div class="field"><label>Отступ слева</label><input type="number" id="pWdPadLeft" value="3.8" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Базовая Y (от низа стр.)</label><input type="number" id="pWdY" value="54.4" step="0.1"><span class="unit">мм</span></div>
+    </div>
+  </details>
+
+  <!-- ============ НИЖНЯЯ ПЛАШКА ============ -->
+  <details>
+    <summary>Нижняя плашка</summary>
+    <div class="details-body">
+      <div class="field"><label>Высота</label><input type="number" id="pBarH" value="44.2" step="0.1"><span class="unit">мм</span></div>
+
+      <div class="hint">Строка 1</div>
+      <div class="field"><label>Текст</label><input type="text" id="pBarLine1" value="График дежурств"></div>
+      <div class="field"><label>Шрифт</label><select id="pBarLine1Font"></select></div>
+      <div class="field"><label>Размер</label><input type="number" id="pBarLine1Size" value="29" step="0.5"><span class="unit">pt</span></div>
+
+      <div class="hint">Строка 2</div>
+      <div class="field"><label>Текст (шаблон)</label><input type="text" id="pBarLine2" value="МЕСЯЦ ГОД"></div>
+      <div class="field"><label>Шрифт</label><select id="pBarLine2Font"></select></div>
+      <div class="field"><label>Размер</label><input type="number" id="pBarLine2Size" value="37" step="0.5"><span class="unit">pt</span></div>
+
+      <div class="hint">Положение блока</div>
+      <div class="field"><label>Отступ от левого края</label><input type="number" id="pBarDX" value="44.8" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Смещение по вертикали</label><input type="number" id="pBarDY" value="-0.3" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Межстрочный интервал</label><input type="number" id="pBarLineGap" value="1.25" step="0.05"><span class="unit">×</span></div>
+
+      <div class="hint">Обтравочная маска</div>
+      <div class="field"><label>Обрезать изображения по плашке</label>
+        <input type="checkbox" id="pBarClip" checked>
+      </div>
+    </div>
+  </details>
+
+  <!-- ============ ИЗОБРАЖЕНИЯ ============ -->
+  <details open>
+    <summary>Изображения</summary>
+    <div class="details-body">
+      <div class="btns" style="margin-bottom:8px">
+        <button id="btnAddImage" class="secondary" style="flex:1">+ Добавить изображение</button>
+      </div>
+      <div id="imagesList"></div>
+      <div class="hint">Перетаскивайте картинки на превью курсором.</div>
+    </div>
+  </details>
+
+  <!-- ============ КАНАЛ ============ -->
+  <details>
+    <summary>Канал создателя генератора</summary>
+    <div class="details-body">
+      <div class="field"><label>Текст</label><span style="flex:2;font-size:12px;color:#804A94;font-weight:600">t.me/ARTemaARTema</span></div>
+      <div class="field"><label>Шрифт</label><select id="pArtFont"></select></div>
+      <div class="field"><label>Размер</label><input type="number" id="pArtSize" value="12" step="0.5"><span class="unit">pt</span></div>
+      <div class="field"><label>Высота плашки</label><input type="number" id="pArtH" value="10.6" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Отступ справа</label><input type="number" id="pArtRight" value="7.5" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Отступ сверху</label><input type="number" id="pArtTop" value="0.5" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Внутр. отступ X</label><input type="number" id="pArtPadX" value="2" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Цвет текста</label><input type="color" id="pArtColor" value="#804A94"></div>
+      <div class="field"><label>Прозрачность</label><input type="range" id="pArtOpacity" min="0" max="100" value="40"><span id="pArtOpacityVal" style="width:34px;font-size:11px;color:#888;text-align:right">40%</span></div>
+      <div class="muted">Да, ты можешь выкрутить в ноль. Я не буду этому противодействовать. Но мне будет грустно.</div>
+    </div>
+  </details>
+
+  <!-- ============ ЦВЕТА ============ -->
+  <details>
+    <summary>Цвета</summary>
+    <div class="details-body">
+      <div class="colorGroup">
+        <div class="hint">Даты</div>
+        <div class="field"><label>Текущий месяц</label><input type="color" id="pDateColor" value="#010101"></div>
+        <div class="field"><label>Соседний месяц</label><input type="color" id="pDateColorOther" value="#B2B2B2"></div>
+      </div>
+      <div class="colorGroup">
+        <div class="hint">Номера комнат</div>
+        <div class="field"><label>Текущий месяц</label><input type="color" id="pRoomColor" value="#804A94"></div>
+        <div class="field"><label>Соседний месяц</label><input type="color" id="pRoomColorOther" value="#B2B2B2"></div>
+      </div>
+      <div class="colorGroup">
+        <div class="hint">Нижняя плашка</div>
+        <div class="field"><label>Фон</label><input type="color" id="pBarBg" value="#804A94"></div>
+        <div class="field"><label>Строка 1</label><input type="color" id="pBarLine1Color" value="#FFFFFF"></div>
+        <div class="field"><label>Строка 2</label><input type="color" id="pBarLine2Color" value="#FFFFFF"></div>
+      </div>
+      <div class="colorGroup">
+        <div class="hint">Дни недели</div>
+        <div class="field"><label>Цвет</label><input type="color" id="pWdColor" value="#010101"></div>
+      </div>
+      <div class="colorGroup">
+        <div class="hint">Линии</div>
+        <div class="field"><label>Цвет</label><input type="color" id="pLineColor" value="#010101"></div>
+      </div>
+    </div>
+  </details>
+
+  <!-- ============ ШРИФТЫ ============ -->
+  <details>
+    <summary>Шрифты</summary>
+    <div class="details-body">
+      <div class="fontList" id="fontList"></div>
+      <div class="btns" style="margin-top:8px">
+        <button id="btnFontAdd" class="secondary" style="flex:1">+ Добавить шрифт</button>
+      </div>
+      <div class="hint">
+        По умолчанию: Gilroy (Raleway CDN), Gilroy Light, Montserrat — всегда доступны.
+        Можно заменить своим TTF.
+      </div>
+    </div>
+  </details>
+
+  <div id="log"></div>
+</div>
+
+<div id="previewWrap">
+  <div class="pagePreview" id="preview"></div>
+</div>
+
+<script>
+// ============================================================
+//  ВСТАВЬТЕ СЮДА СВОИ BASE64 (целиком, с префиксом data:image/png;base64,)
+// ============================================================
+const BUILTIN_IMG_LOGO = "__ВСТАВЬТЕ_BASE64_ЛОГОТИПА__";
+const BUILTIN_IMG_BG   = "__ВСТАВЬТЕ_BASE64_ФОНА__";
+
+// ============================================================
+//  Константы
+// ============================================================
+const MM = 2.834645669;
+const toPt = mm => mm * MM;
+const toMm = pt => pt / MM;
+
+const PAGE_FORMATS = {
+  "A4-l": { w: 297, h: 210 },
+  "A4-p": { w: 210, h: 297 },
+  "A3-l": { w: 420, h: 297 },
+  "A3-p": { w: 297, h: 420 },
+  "A5-l": { w: 210, h: 148 },
+  "A5-p": { w: 148, h: 210 },
+};
+
+// ============================================================
+//  Лог
+// ============================================================
+function log(msg, cls) {
+  const el = document.getElementById("log");
+  const div = document.createElement("div");
+  if (cls) div.style.color = cls === "err" ? "red" : "green";
+  div.textContent = msg;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+function clearLog() { document.getElementById("log").innerHTML = ""; }
+
+// ============================================================
+//  Реестр шрифтов + FontFace для превью
+// ============================================================
+const FONTS = {
+  gilroy:     { label: "Gilroy",       cdn: "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/raleway/Raleway%5Bwght%5D.ttf", weight: 500 },
+  gilroyLight:{ label: "Gilroy Light", cdn: "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/raleway/Raleway%5Bwght%5D.ttf", weight: 300 },
+  montserrat: { label: "Montserrat",   cdn: "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/montserrat/Montserrat%5Bwght%5D.ttf", weight: 600 },
+  helvetica:  { label: "Helvetica", builtin: true, weight: 400 },
+  times:      { label: "Times",     builtin: true, weight: 400 },
+  courier:    { label: "Courier",   builtin: true, weight: 400 },
+};
+const FONT_BYTES = {};
+
+async function loadFontFace(name) {
+  const f = FONTS[name];
+  if (!f || f.builtin) return;
+  if (f._fontFaceLoaded) return;
+  try {
+    let buf;
+    if (FONT_BYTES[name]) {
+      buf = FONT_BYTES[name];
+    } else if (f.cdn) {
+      const r = await fetch(f.cdn);
+      buf = await r.arrayBuffer();
+      FONT_BYTES[name] = buf;
+    } else {
+      return;
+    }
+    const face = new FontFace(f.label, buf, { weight: String(f.weight || 400) });
+    await face.load();
+    document.fonts.add(face);
+    f._fontFaceLoaded = true;
+  } catch (e) {
+    console.warn("Не удалось загрузить FontFace для", name, e);
+  }
+}
+
+async function loadAllFontFaces() {
+  for (const name of Object.keys(FONTS)) {
+    await loadFontFace(name);
+  }
+}
+
+function refreshFontSelects() {
+  const ids = ["pDateFont", "pRoomFont", "pWdFont", "pBarLine1Font", "pBarLine2Font", "pArtFont"];
+  ids.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = "";
+    Object.entries(FONTS).forEach(([key, f]) => {
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = f.label;
+      sel.appendChild(opt);
+    });
+    if (cur && FONTS[cur]) sel.value = cur;
+    else sel.value = Object.keys(FONTS)[0];
+  });
+}
+
+function refreshFontList() {
+  const list = document.getElementById("fontList");
+  list.innerHTML = "";
+  Object.entries(FONTS).forEach(([key, f]) => {
+    const row = document.createElement("div");
+    row.className = "fontItem";
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = f.label + (f.builtin ? " (встроенный)" : f.cdn ? " (CDN)" : " (свой)");
+    row.appendChild(name);
+    if (!f.builtin) {
+      const del = document.createElement("button");
+      del.className = "secondary mini";
+      del.textContent = "✕";
+      del.onclick = () => {
+        delete FONTS[key];
+        delete FONT_BYTES[key];
+        refreshFontSelects();
+        refreshFontList();
+        render();
+      };
+      row.appendChild(del);
+    }
+    list.appendChild(row);
+  });
+}
+
+document.getElementById("btnFontAdd").addEventListener("click", () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".ttf,font/ttf";
+  input.onchange = async () => {
+    const f = input.files[0];
+    if (!f) return;
+    const name = prompt("Имя шрифта:", f.name.replace(/\.ttf$/i, "").replace(/\s+/g, "_"));
+    if (!name) return;
+    FONT_BYTES[name] = await f.arrayBuffer();
+    FONTS[name] = { label: name, builtin: false, cdn: null, weight: 400 };
+    refreshFontSelects();
+    refreshFontList();
+    await loadFontFace(name);
+    log("Добавлен шрифт: " + name);
+    render();
+  };
+  input.click();
+});
+
+async function getFontBytes(name) {
+  if (name === "helvetica" || name === "times" || name === "courier") return null;
+  if (FONT_BYTES[name]) return FONT_BYTES[name];
+  const f = FONTS[name];
+  if (!f || !f.cdn) throw new Error("Шрифт не найден: " + name);
+  const buf = await fetch(f.cdn).then(r => r.arrayBuffer());
+  FONT_BYTES[name] = buf;
+  return buf;
+}
+
+// ============================================================
+//  Изображения (массив)
+// ============================================================
+let images = [
+  {
+    id: "img1",
+    name: "Логотип",
+    dataUrl: BUILTIN_IMG_LOGO,
+    x: 22, y: 22.6,           // мм, центр
+    scale: 1,
+    baseW: 23,                // мм, базовая ширина
+    opacity: 1,
+    blend: "normal",
+    bright: 0, contrast: 100, sat: 100,
+    clip: true,
+  },
+  {
+    id: "img2",
+    name: "Фон",
+    dataUrl: BUILTIN_IMG_BG,
+    x: 226.3, y: 21.8,
+    scale: 1,
+    baseW: 144,
+    opacity: 1,
+    blend: "normal",
+    bright: 0, contrast: 100, sat: 100,
+    clip: true,
+  },
+];
+let imgCounter = 3;
+
+// -------- Панель изображений --------
+function renderImagesList() {
+  const list = document.getElementById("imagesList");
+  list.innerHTML = "";
+  images.forEach(img => {
+    const card = document.createElement("div");
+    card.className = "imgCard";
+    card.innerHTML = `
+      <div class="imgHeader">
+        <span class="name">${img.name}</span>
+        <button class="mini secondary" data-act="del">✕</button>
+      </div>
+      <div class="field"><label>Файл (PNG/JPG)</label><input type="file" data-act="file" accept="image/*"></div>
+      <div class="field"><label>Имя</label><input type="text" data-act="name" value="${img.name}"></div>
+      <div class="field"><label>X (центр)</label><input type="number" data-act="x" value="${img.x}" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Y (центр)</label><input type="number" data-act="y" value="${img.y}" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Базовая ширина</label><input type="number" data-act="baseW" value="${img.baseW}" step="1"><span class="unit">мм</span></div>
+      <div class="field"><label>Масштаб (от центра)</label><input type="number" data-act="scale" value="${img.scale}" step="0.05"><span class="unit">×</span></div>
+      <div class="field"><label>Прозрачность</label><input type="range" data-act="opacity" min="0" max="100" value="${img.opacity*100}"><span data-act="opacityVal" style="width:34px;font-size:11px;color:#888;text-align:right">${Math.round(img.opacity*100)}%</span></div>
+      <div class="field"><label>Режим наложения</label>
+        <select data-act="blend">
+          ${["normal","multiply","screen","overlay","darken","lighten"].map(b =>
+            `<option value="${b}" ${img.blend===b?"selected":""}>${({normal:"Обычный",multiply:"Умножение",screen:"Экран",overlay:"Наложение",darken:"Затемнение",lighten:"Осветление"})[b]}</option>`
+          ).join("")}
+        </select>
+      </div>
+      <div class="field"><label>Яркость</label><input type="range" data-act="bright" min="-100" max="100" value="${img.bright}"><span data-act="brightVal" style="width:34px;font-size:11px;color:#888;text-align:right">${img.bright}</span></div>
+      <div class="field"><label>Контраст</label><input type="range" data-act="contrast" min="0" max="200" value="${img.contrast}"><span data-act="contrastVal" style="width:34px;font-size:11px;color:#888;text-align:right">${img.contrast}</span></div>
+      <div class="field"><label>Насыщенность</label><input type="range" data-act="sat" min="0" max="200" value="${img.sat}"><span data-act="satVal" style="width:34px;font-size:11px;color:#888;text-align:right">${img.sat}</span></div>
+      <div class="field"><label>Обрезать по плашке</label><input type="checkbox" data-act="clip" ${img.clip?"checked":""}></div>
+    `;
+    list.appendChild(card);
+
+    card.querySelector('[data-act="del"]').onclick = () => {
+      images = images.filter(i => i.id !== img.id);
+      renderImagesList();
+      render();
+    };
+    card.querySelector('[data-act="file"]').onchange = async e => {
+      const f = e.target.files[0]; if (!f) return;
+      const buf = await f.arrayBuffer();
+      img.dataUrl = arrayBufferToDataUrl(buf, f.type);
+      render();
+    };
+    card.querySelector('[data-act="name"]').oninput = e => { img.name = e.target.value; };
+    const bindNum = (key, sub = "") => {
+      card.querySelector(`[data-act="${key}"]`).oninput = e => {
+        img[key] = parseFloat(e.target.value);
+        if (sub) card.querySelector(`[data-act="${sub}"]`).textContent = (key === "opacity" ? Math.round(img.opacity*100) + "%" : img[key]);
+        if (autoUpdate) render();
+      };
+    };
+    bindNum("x"); bindNum("y"); bindNum("baseW"); bindNum("scale");
+    bindNum("opacity", "opacityVal");
+    bindNum("bright", "brightVal");
+    bindNum("contrast", "contrastVal");
+    bindNum("sat", "satVal");
+    card.querySelector('[data-act="blend"]').onchange = e => { img.blend = e.target.value; if (autoUpdate) render(); };
+    card.querySelector('[data-act="clip"]').onchange = e => { img.clip = e.target.checked; if (autoUpdate) render(); };
+  });
+}
+
+document.getElementById("btnAddImage").addEventListener("click", () => {
+  images.push({
+    id: "img" + (imgCounter++),
+    name: "Изображение " + imgCounter,
+    dataUrl: null,
+    x: 148, y: 22,
+    scale: 1, baseW: 40,
+    opacity: 1, blend: "normal",
+    bright: 0, contrast: 100, sat: 100,
+    clip: true,
+  });
+  renderImagesList();
+});
+
+// ============================================================
+//  Утилиты картинок
+// ============================================================
+function arrayBufferToDataUrl(buf, mime) {
+  let binary = "";
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return `data:${mime || "image/png"};base64,${btoa(binary)}`;
+}
+function dataUrlToUint8Array(dataUrl) {
+  const base64 = dataUrl.split(",")[1];
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+async function processImage(dataUrl, bright, contrast, sat) {
+  if (!dataUrl) return null;
+  if (bright === 0 && contrast === 100 && sat === 100) return dataUrl;
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.filter = `brightness(${100 + bright}%) contrast(${contrast}%) saturate(${sat}%)`;
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+function getImageDimensions(dataUrl) {
+  return new Promise(resolve => {
+    if (!dataUrl) return resolve({ w: 1, h: 1 });
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => resolve({ w: 1, h: 1 });
+    img.src = dataUrl;
+  });
+}
+
+// ============================================================
+//  Чтение параметров (в pt для расчётов)
+// ============================================================
+function num(id) { return parseFloat(document.getElementById(id).value); }
+function str(id) { return document.getElementById(id).value; }
+function chk(id) { return document.getElementById(id).checked; }
+function color(id) {
+  const hex = document.getElementById(id).value.replace("#", "");
+  return {
+    r: parseInt(hex.substr(0,2), 16) / 255,
+    g: parseInt(hex.substr(2,2), 16) / 255,
+    b: parseInt(hex.substr(4,2), 16) / 255,
+  };
+}
+const fsv = id => num(id);
+const mmv = id => toPt(num(id));
+
+function readParams() {
+  return {
+    page: { w: mmv("pPageW"), h: mmv("pPageH"), scale: num("pScale") },
+    grid: {
+      rows: parseInt(str("pRows"), 10),
+      alwaysSix: chk("pAlwaysSix"),
+      topMargin: mmv("pTopMargin"), sideMargin: mmv("pSideMargin"),
+      colGap: mmv("pColGap"),
+      rowGap5: mmv("pRowGap5"), rowGap6: mmv("pRowGap6"),
+    },
+    date: {
+      h: mmv("pDateH"), size: fsv("pDateSize"), font: str("pDateFont"),
+      color: color("pDateColor"), colorOther: color("pDateColorOther"),
+      dx: mmv("pDateDX"), dy: mmv("pDateDY"),
+    },
+    room: {
+      h: mmv("pRoomH"), size: fsv("pRoomSize"), font: str("pRoomFont"),
+      color: color("pRoomColor"), colorOther: color("pRoomColorOther"),
+      dx: mmv("pRoomDX"), dy: mmv("pRoomDY"),
+      template: str("pRoomTemplate"),
+      showFloor: chk("pRoomShowFloor"),
+      floor: parseInt(str("pRoomFloor"), 10) || 0,
+    },
+    bar: {
+      h: mmv("pBarH"), bg: color("pBarBg"),
+      line1: str("pBarLine1"), line1Font: str("pBarLine1Font"),
+      line1Size: fsv("pBarLine1Size"), line1Color: color("pBarLine1Color"),
+      line2: str("pBarLine2"), line2Font: str("pBarLine2Font"),
+      line2Size: fsv("pBarLine2Size"), line2Color: color("pBarLine2Color"),
+      dx: mmv("pBarDX"), dy: mmv("pBarDY"), lineGap: num("pBarLineGap"),
+      clip: chk("pBarClip"),
+    },
+    art: {
+      text: "t.me/ARTemaARTema",
+      font: str("pArtFont"),
+      size: fsv("pArtSize"), h: mmv("pArtH"),
+      right: mmv("pArtRight"), top: mmv("pArtTop"),
+      padX: mmv("pArtPadX"),
+      color: color("pArtColor"),
+      opacity: num("pArtOpacity") / 100,
+    },
+    weekday: {
+      size: fsv("pWdSize"), font: str("pWdFont"),
+      form: str("pWdForm"), case: str("pWdCase"),
+      color: color("pWdColor"),
+      padLeft: mmv("pWdPadLeft"), y: mmv("pWdY"),
+    },
+    line: {
+      w: mmv("pLineW"), color: color("pLineColor"),
+      top: mmv("pLineTop"), bottom: mmv("pLineBottom"),
+      horiz: chk("pLineHoriz"),
+      horizW: mmv("pLineHorizW"),
+      horizPad: mmv("pLineHorizPad"),
+    },
+    test: {
+      monthFrom: str("tMonthFrom"), monthTo: str("tMonthTo"),
+      rooms: str("tRooms"), lastRoom: parseInt(str("tLastRoom"),10),
+      lastDate: str("tLastDate"),
+      order: str("tOrder"),
+      previewMonth: str("tPreviewMonth"),
+    },
+  };
+}
+
+// ============================================================
+//  Применение параметров (из JSON, значения в мм и pt, как в UI)
+// ============================================================
+function applyParams(P) {
+  const setNum = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; };
+  const setStr = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; };
+  const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
+  const setCol = (id, c) => {
+    if (!c) return;
+    const hex = "#" + [c.r, c.g, c.b].map(x => Math.round(x*255).toString(16).padStart(2,"0")).join("");
+    const el = document.getElementById(id);
+    if (el) el.value = hex;
+  };
+
+  if (P.page) { setNum("pPageW", P.page.w); setNum("pPageH", P.page.h); setNum("pScale", P.page.scale); }
+  if (P.grid) {
+    setStr("pRows", String(P.grid.rows));
+    setChk("pAlwaysSix", P.grid.alwaysSix);
+    setNum("pTopMargin", P.grid.topMargin); setNum("pSideMargin", P.grid.sideMargin);
+    setNum("pColGap", P.grid.colGap);
+    setNum("pRowGap5", P.grid.rowGap5); setNum("pRowGap6", P.grid.rowGap6);
+  }
+  if (P.date) {
+    setNum("pDateH", P.date.h); setNum("pDateSize", P.date.size); setStr("pDateFont", P.date.font);
+    setNum("pDateDX", P.date.dx); setNum("pDateDY", P.date.dy);
+    setCol("pDateColor", P.date.color); setCol("pDateColorOther", P.date.colorOther);
+  }
+  if (P.room) {
+    setNum("pRoomH", P.room.h); setNum("pRoomSize", P.room.size); setStr("pRoomFont", P.room.font);
+    setNum("pRoomDX", P.room.dx); setNum("pRoomDY", P.room.dy);
+    setStr("pRoomTemplate", P.room.template);
+    setChk("pRoomShowFloor", P.room.showFloor);
+    setNum("pRoomFloor", P.room.floor);
+    setCol("pRoomColor", P.room.color); setCol("pRoomColorOther", P.room.colorOther);
+  }
+  if (P.bar) {
+    setNum("pBarH", P.bar.h);
+    setStr("pBarLine1", P.bar.line1); setStr("pBarLine1Font", P.bar.line1Font);
+    setNum("pBarLine1Size", P.bar.line1Size); setCol("pBarLine1Color", P.bar.line1Color);
+    setStr("pBarLine2", P.bar.line2); setStr("pBarLine2Font", P.bar.line2Font);
+    setNum("pBarLine2Size", P.bar.line2Size); setCol("pBarLine2Color", P.bar.line2Color);
+    setNum("pBarDX", P.bar.dx); setNum("pBarDY", P.bar.dy); setNum("pBarLineGap", P.bar.lineGap);
+    setChk("pBarClip", P.bar.clip);
+    setCol("pBarBg", P.bar.bg);
+  }
+  if (P.art) {
+    setStr("pArtFont", P.art.font);
+    setNum("pArtSize", P.art.size); setNum("pArtH", P.art.h);
+    setNum("pArtRight", P.art.right); setNum("pArtTop", P.art.top);
+    setNum("pArtPadX", P.art.padX);
+    setCol("pArtColor", P.art.color);
+    setNum("pArtOpacity", P.art.opacity * 100);
+  }
+  if (P.weekday) {
+    setNum("pWdSize", P.weekday.size); setStr("pWdFont", P.weekday.font);
+    setStr("pWdForm", P.weekday.form); setStr("pWdCase", P.weekday.case);
+    setCol("pWdColor", P.weekday.color);
+    setNum("pWdPadLeft", P.weekday.padLeft); setNum("pWdY", P.weekday.y);
+  }
+  if (P.line) {
+    setNum("pLineW", P.line.w); setCol("pLineColor", P.line.color);
+    setNum("pLineTop", P.line.top); setNum("pLineBottom", P.line.bottom);
+    setChk("pLineHoriz", P.line.horiz);
+    setNum("pLineHorizW", P.line.horizW);
+    setNum("pLineHorizPad", P.line.horizPad);
+  }
+  if (P.test) {
+    setStr("tMonthFrom", P.test.monthFrom || P.test.yearMonthFrom);
+    setStr("tMonthTo",   P.test.monthTo   || P.test.yearMonthTo);
+    setStr("tRooms", P.test.rooms);
+    setNum("tLastRoom", P.test.lastRoom);
+    setStr("tLastDate", P.test.lastDate);
+    setStr("tOrder", P.test.order || "forward");
+    setStr("tPreviewMonth", P.test.previewMonth || P.test.monthFrom || P.test.yearMonthFrom);
+  }
+  if (P.images && Array.isArray(P.images)) {
+    images = P.images.map((im, i) => ({
+      id: im.id || ("img" + (i+1)),
+      name: im.name || ("Изображение " + (i+1)),
+      dataUrl: im.dataUrl || null,
+      x: im.x, y: im.y,
+      scale: im.scale ?? 1,
+      baseW: im.baseW ?? 40,
+      opacity: im.opacity ?? 1,
+      blend: im.blend || "normal",
+      bright: im.bright ?? 0,
+      contrast: im.contrast ?? 100,
+      sat: im.sat ?? 100,
+      clip: im.clip !== false,
+    }));
+    renderImagesList();
+  }
+  ["pArtOpacity"].forEach(id => {
+    const el = document.getElementById(id);
+    const label = document.getElementById(id + "Val");
+    if (el && label) label.textContent = el.value + "%";
+  });
+  updateAlwaysSixLock();
+}
+
+// ============================================================
+//  Блокировка «Строк на превью»
+// ============================================================
+function updateAlwaysSixLock() {
+  const always = chk("pAlwaysSix");
+  const sel = document.getElementById("pRows");
+  if (always) { sel.value = "6"; sel.disabled = true; }
+  else { sel.disabled = false; }
+}
+document.getElementById("pAlwaysSix").addEventListener("change", () => {
+  updateAlwaysSixLock();
+  if (autoUpdate) render();
+});
+
+// ============================================================
+//  Расписание
+// ============================================================
+function parseRooms(str) {
+  const rooms = [];
+  str.split(",").forEach(part => {
+    part = part.trim();
+    if (!part) return;
+    const m = part.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (m) {
+      const a = +m[1], b = +m[2];
+      if (a <= b) for (let i = a; i <= b; i++) rooms.push(i);
+      else        for (let i = a; i >= b; i--) rooms.push(i);
+    } else if (/^\d+$/.test(part)) rooms.push(+part);
+  });
+  return rooms;
+}
+function buildFullSchedule(rooms, lastRoom, lastDate, startDate, endDate, order) {
+  const schedule = new Map();
+  let idx = rooms.indexOf(lastRoom);
+  if (idx === -1) idx = 0;
+  const step = order === "backward" ? -1 : 1;
+  const norm = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  let cursor = norm(lastDate);
+  cursor.setDate(cursor.getDate() + 1);
+  if (cursor < startDate) cursor = new Date(startDate);
+  while (cursor <= endDate) {
+    idx = ((idx + step) % rooms.length + rooms.length) % rooms.length;
+    const key = cursor.getFullYear() + "-" +
+                String(cursor.getMonth()+1).padStart(2,"0") + "-" +
+                String(cursor.getDate()).padStart(2,"0");
+    schedule.set(key, rooms[idx]);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return schedule;
+}
+function formatRoom(room, cfg, allRooms) {
+  let num = String(room);
+  if (cfg.showFloor) {
+    const maxLen = String(Math.max(...allRooms)).length;
+    num = num.padStart(maxLen, "0");
+    num = String(cfg.floor) + num;
+  }
+  return cfg.template.replace(/НОМЕР/g, num);
+}
+
+// ============================================================
+//  Превью
+// ============================================================
+const MONTHS_RU = ["ЯНВАРЬ","ФЕВРАЛЬ","МАРТ","АПРЕЛЬ","МАЙ","ИЮНЬ",
+                   "ИЮЛЬ","АВГУСТ","СЕНТЯБРЬ","ОКТЯБРЬ","НОЯБРЬ","ДЕКАБРЬ"];
+const WEEKDAYS_FULL = ["Понедельник","Вторник","Среда","Четверг","Пятница","Суббота","Воскресенье"];
+const WEEKDAYS_SHORT = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+
+function applyCase(str, mode) {
+  if (mode === "upper") return str.toUpperCase();
+  if (mode === "lower") return str.toLowerCase();
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+function getWeekdayLabel(idx, form, caseMode) {
+  const base = form === "full" ? WEEKDAYS_FULL[idx] : WEEKDAYS_SHORT[idx];
+  return applyCase(base, caseMode);
+}
+function rgbCss(c) {
+  return `rgb(${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)})`;
+}
+function fontFamilyCss(name) {
+  const f = FONTS[name];
+  if (!f) return "Arial,sans-serif";
+  if (f.builtin) {
+    if (name === "helvetica") return "Helvetica,Arial,sans-serif";
+    if (name === "times") return "'Times New Roman',Times,serif";
+    if (name === "courier") return "'Courier New',Courier,monospace";
+  }
+  return `"${f.label}",Arial,sans-serif`;
+}
+function svgBlendMode(name) {
+  switch (name) {
+    case "multiply": return "multiply";
+    case "screen": return "screen";
+    case "overlay": return "overlay";
+    case "darken": return "darken";
+    case "lighten": return "lighten";
+    default: return "normal";
+  }
+}
+
+async function render() {
+  clearLog();
+  updateAlwaysSixLock();
+  const P = readParams();
+  const { monthFrom, monthTo, rooms: roomsStr, lastRoom, lastDate, order, previewMonth } = P.test;
+
+  let previewY, previewM;
+  if (previewMonth) {
+    const [y, m] = previewMonth.split("-").map(Number);
+    previewY = y; previewM = m - 1;
+  } else {
+    const [y, m] = monthFrom.split("-").map(Number);
+    previewY = y; previewM = m - 1;
+  }
+  const year = previewY, month = previewM;
+
+  const rooms = parseRooms(roomsStr);
+  if (!rooms.length) { log("Нет комнат", "err"); return; }
+
+  const firstDay = new Date(year, month, 1);
+  const startCol = (firstDay.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  let ROWS;
+  if (P.grid.alwaysSix) ROWS = 6;
+  else ROWS = parseInt(document.getElementById("pRows").value, 10);
+  const rowGap = ROWS === 5 ? P.grid.rowGap5 : P.grid.rowGap6;
+
+  const schedStart = new Date(year, month - 2, 1);
+  const schedEnd   = new Date(year, month + 3, 0);
+  const lastDateObj = new Date(lastDate + "T00:00:00");
+  const schedule = buildFullSchedule(rooms, lastRoom, lastDateObj, schedStart, schedEnd, order);
+
+  const PAGE_W = P.page.w, PAGE_H = P.page.h;
+  const COLS = 7;
+  const CELL_H = P.date.h + P.room.h;
+  const totalGapW = P.grid.colGap * (COLS - 1);
+  const CELL_W = (PAGE_W - P.grid.sideMargin * 2 - totalGapW) / COLS;
+  const GRID_TOP = PAGE_H - P.grid.topMargin;
+  const gridStart = new Date(year, month, 1 - startCol);
+
+  const scale = P.page.scale;
+  const svgW = PAGE_W * scale;
+  const svgH = PAGE_H * scale;
+  const X = x => x * scale;
+  const Y = y => (PAGE_H - y) * scale;
+
+  // Обработка изображений
+  const processedImages = [];
+  for (const im of images) {
+    if (!im.dataUrl) continue;
+    const dataUrl = await processImage(im.dataUrl, im.bright, im.contrast, im.sat);
+    const dim = await getImageDimensions(im.dataUrl);
+    processedImages.push({ ...im, _dataUrl: dataUrl, _dim: dim });
+  }
+
+  const parts = [];
+  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">`);
+  parts.push(`<defs>`);
+  parts.push(`<clipPath id="barClip"><rect x="0" y="${Y(P.bar.h)}" width="${svgW}" height="${P.bar.h*scale}"/></clipPath>`);
+  parts.push(`</defs>`);
+  parts.push(`<rect x="0" y="0" width="${svgW}" height="${svgH}" fill="#ffffff"/>`);
+  parts.push(`<rect x="0" y="${Y(P.bar.h)}" width="${svgW}" height="${P.bar.h*scale}" fill="${rgbCss(P.bar.bg)}"/>`);
+
+  // Изображения
+  for (const im of processedImages) {
+    const w = im.baseW * im.scale;
+    const h = w * (im._dim.h / im._dim.w);
+    const clipAttr = (P.bar.clip && im.clip) ? `clip-path="url(#barClip)"` : "";
+    parts.push(`<g ${clipAttr} style="mix-blend-mode:${svgBlendMode(im.blend)}">`);
+    parts.push(`<image class="draggable" data-img="${im.id}" opacity="${im.opacity}" x="${X(im.x - w/2)}" y="${Y(im.y + h/2)}" width="${w*scale}" height="${h*scale}" xlink:href="${im._dataUrl}" preserveAspectRatio="none" style="cursor:move"/>`);
+    parts.push(`</g>`);
+  }
+
+  // Нижняя плашка — тексты
+  const lineGapPx = P.bar.line1Size * P.bar.lineGap;
+  const midY = P.bar.h / 2 + P.bar.dy;
+  const y1 = midY + lineGapPx / 2;
+  const y2 = midY - lineGapPx / 2;
+
+  parts.push(`<text x="${X(P.bar.dx)}" y="${Y(y1)}" font-family="${fontFamilyCss(P.bar.line1Font)}" font-size="${P.bar.line1Size*scale}" font-weight="600" fill="${rgbCss(P.bar.line1Color)}" dominant-baseline="middle">${P.bar.line1}</text>`);
+  const line2Text = P.bar.line2.replace(/МЕСЯЦ/g, MONTHS_RU[month]).replace(/ГОД/g, year);
+  parts.push(`<text x="${X(P.bar.dx)}" y="${Y(y2)}" font-family="${fontFamilyCss(P.bar.line2Font)}" font-size="${P.bar.line2Size*scale}" font-weight="600" fill="${rgbCss(P.bar.line2Color)}" dominant-baseline="middle">${line2Text}</text>`);
+
+  // Ячейки
+  for (let i = 0; i < ROWS * COLS; i++) {
+    const cellDate = new Date(gridStart);
+    cellDate.setDate(gridStart.getDate() + i);
+    const r = Math.floor(i / COLS);
+    const c = i % COLS;
+    const isCurrent = cellDate.getMonth() === month;
+    const x0 = P.grid.sideMargin + c * (CELL_W + P.grid.colGap);
+    const yTopDate = GRID_TOP - r * (CELL_H + rowGap);
+    const yTopRoom = yTopDate - P.date.h;
+
+    const dateStr = String(cellDate.getDate());
+    const dateSize = P.date.size;
+    const dateColor = isCurrent ? P.date.color : P.date.colorOther;
+    const dateX = x0 + CELL_W / 2 + P.date.dx;
+    const dateY = yTopDate - P.date.h / 2 + P.date.dy;
+    parts.push(`<text x="${X(dateX)}" y="${Y(dateY)}" font-family="${fontFamilyCss(P.date.font)}" font-size="${dateSize*scale}" font-weight="${isCurrent ? 500 : 300}" fill="${rgbCss(dateColor)}" text-anchor="middle" dominant-baseline="middle">${dateStr}</text>`);
+
+    const key = cellDate.getFullYear() + "-" +
+                String(cellDate.getMonth()+1).padStart(2,"0") + "-" +
+                String(cellDate.getDate()).padStart(2,"0");
+    const room = schedule.get(key);
+    if (room !== undefined) {
+      const roomStr = formatRoom(room, P.room, rooms);
+      const roomSize = P.room.size;
+      const roomColor = isCurrent ? P.room.color : P.room.colorOther;
+      const roomX = x0 + CELL_W / 2 + P.room.dx;
+      const roomY = yTopRoom + P.room.h / 2 + P.room.dy;
+      parts.push(`<text x="${X(roomX)}" y="${Y(roomY)}" font-family="${fontFamilyCss(P.room.font)}" font-size="${roomSize*scale}" font-weight="${isCurrent ? 600 : 300}" fill="${rgbCss(roomColor)}" text-anchor="middle" dominant-baseline="middle">${roomStr}</text>`);
+    }
+  }
+
+  // Дни недели
+  for (let c = 0; c < COLS; c++) {
+    const x0 = P.grid.sideMargin + c * (CELL_W + P.grid.colGap);
+    const wdX = x0 + P.weekday.padLeft;
+    const wdY = P.weekday.y;
+    const label = getWeekdayLabel(c, P.weekday.form, P.weekday.case);
+    parts.push(`<text x="${X(wdX)}" y="${Y(wdY)}" font-family="${fontFamilyCss(P.weekday.font)}" font-size="${P.weekday.size*scale}" font-weight="400" fill="${rgbCss(P.weekday.color)}">${label}</text>`);
+  }
+
+  // Вертикальные линии
+  for (let c = 1; c < COLS; c++) {
+    const xLine = P.grid.sideMargin + c * (CELL_W + P.grid.colGap) - P.grid.colGap / 2;
+    const yTopPDF = PAGE_H - P.line.top;
+    const yBotPDF = PAGE_H - P.line.bottom;
+    parts.push(`<line x1="${X(xLine)}" y1="${Y(yTopPDF)}" x2="${X(xLine)}" y2="${Y(yBotPDF)}" stroke="${rgbCss(P.line.color)}" stroke-width="${P.line.w * scale}"/>`);
+  }
+
+  // Горизонтальные линии
+  if (P.line.horiz) {
+    for (let r = 1; r < ROWS; r++) {
+      const yMid = GRID_TOP - r * CELL_H - (r - 1) * rowGap - rowGap / 2;
+      const xLeft = P.grid.sideMargin + P.line.horizPad;
+      const xRight = PAGE_W - P.grid.sideMargin - P.line.horizPad;
+      parts.push(`<line x1="${X(xLeft)}" y1="${Y(yMid)}" x2="${X(xRight)}" y2="${Y(yMid)}" stroke="${rgbCss(P.line.color)}" stroke-width="${P.line.horizW * scale}"/>`);
+    }
+  }
+
+  // ARTemaARTema
+  const artTextW = P.art.size * 0.55 * P.art.text.length;
+  const artW = artTextW + P.art.padX * 2;
+  const artX = PAGE_W - artW - P.art.right;
+  const artY = PAGE_H - P.art.h - P.art.top;
+  parts.push(`<text x="${X(artX + P.art.padX)}" y="${Y(artY + P.art.h/2)}" font-family="${fontFamilyCss(P.art.font)}" font-size="${P.art.size*scale}" font-weight="600" fill="${rgbCss(P.art.color)}" opacity="${P.art.opacity}" dominant-baseline="middle">${P.art.text}</text>`);
+
+  parts.push(`</svg>`);
+  document.getElementById("preview").innerHTML = parts.join("");
+  setupDragAndDrop();
+  setupWheelZoom();
+  log(`Превью: ${MONTHS_RU[month]} ${year}, строк: ${ROWS}`);
+}
+
+// ============================================================
+//  Drag & drop картинок
+// ============================================================
+function setupDragAndDrop() {
+  const svg = document.querySelector("#preview svg");
+  if (!svg) return;
+  const nodes = svg.querySelectorAll("image.draggable");
+  nodes.forEach(node => {
+    node.addEventListener("mousedown", e => {
+      e.preventDefault();
+      const id = node.getAttribute("data-img");
+      const img = images.find(i => i.id === id);
+      if (!img) return;
+      const P = readParams();
+      const startX = e.clientX, startY = e.clientY;
+      const startImgX = img.x, startImgY = img.y;
+
+      function onMove(ev) {
+        const dxPt = (ev.clientX - startX) / P.page.scale;
+        const dyPt = (ev.clientY - startY) / P.page.scale;
+        img.x = startImgX + toMm(dxPt);
+        img.y = startImgY - toMm(dyPt);
+        // обновим поля в панели
+        const card = document.querySelector(`.imgCard [data-act="x"]`);
+        // проще: перерисуем панель
+        if (autoUpdate) render();
+        // Обновим поля ввода для этого изображения
+        document.querySelectorAll("#imagesList .imgCard").forEach(c => {
+          const nameInput = c.querySelector('[data-act="name"]');
+          if (nameInput && nameInput.value === img.name) {
+            c.querySelector('[data-act="x"]').value = img.x.toFixed(1);
+            c.querySelector('[data-act="y"]').value = img.y.toFixed(1);
+          }
+        });
+      }
+      function onUp() {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+      }
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+  });
+}
+
+function setupWheelZoom() {
+  const wrap = document.getElementById("previewWrap");
+  wrap.onwheel = (e) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const cur = parseFloat(document.getElementById("pScale").value);
+    const delta = e.deltaY > 0 ? -0.05 : 0.05;
+    const next = Math.max(0.1, Math.min(5, cur + delta));
+    document.getElementById("pScale").value = next.toFixed(2);
+    render();
+  };
+}
+
+// ============================================================
+//  Экспорт PDF
+// ============================================================
+async function exportPdf() {
+  clearLog();
+  const P = readParams();
+  const rooms = parseRooms(P.test.rooms);
+  if (!rooms.length) { log("Нет комнат", "err"); return; }
+
+  const { monthFrom, monthTo, lastRoom, lastDate, order } = P.test;
+  const [fromY, fromM] = monthFrom.split("-").map(Number);
+  const [toY, toM]     = monthTo.split("-").map(Number);
+  if (fromY !== toY) { log("Месяцы должны быть в одном году", "err"); return; }
+
+  const { PDFDocument, rgb } = PDFLib;
+  const doc = await PDFDocument.create();
+  doc.registerFontkit(fontkit);
+
+  const fontCache = {};
+  async function getFont(name) {
+    if (fontCache[name]) return fontCache[name];
+    let font;
+    if (name === "helvetica") font = await doc.embedFont("Helvetica");
+    else if (name === "times") font = await doc.embedFont("Times-Roman");
+    else if (name === "courier") font = await doc.embedFont("Courier");
+    else {
+      const bytes = await getFontBytes(name);
+      font = await doc.embedFont(bytes, { subset: true });
+    }
+    fontCache[name] = font;
+    return font;
+  }
+
+  const fontDate     = await getFont(P.date.font);
+  const fontRoom     = await getFont(P.room.font);
+  const fontWd       = await getFont(P.weekday.font);
+  const fontBarLine1 = await getFont(P.bar.line1Font);
+  const fontBarLine2 = await getFont(P.bar.line2Font);
+  const fontArt      = await getFont(P.art.font);
+
+  const PAGE_W = P.page.w, PAGE_H = P.page.h;
+  const COLS = 7;
+  const totalGapW = P.grid.colGap * (COLS - 1);
+  const CELL_W = (PAGE_W - P.grid.sideMargin * 2 - totalGapW) / COLS;
+  const GRID_TOP = PAGE_H - P.grid.topMargin;
+
+  const schedStart = new Date(fromY, fromM - 3, 1);
+  const schedEnd   = new Date(toY, toM + 2, 0);
+  const schedule = buildFullSchedule(rooms, lastRoom, new Date(lastDate + "T00:00:00"), schedStart, schedEnd, order);
+
+  // Подготовка изображений (обработанные PNG + размеры)
+  const pdfImages = [];
+  for (const im of images) {
+    if (!im.dataUrl) continue;
+    const dataUrl = await processImage(im.dataUrl, im.bright, im.contrast, im.sat);
+    const pngBytes = dataUrlToUint8Array(dataUrl);
+    const img = await doc.embedPng(pngBytes);
+    const dim = await getImageDimensions(im.dataUrl);
+    pdfImages.push({ cfg: im, img, dim });
+  }
+
+  for (let m = fromM - 1; m <= toM - 1; m++) {
+    const year = fromY;
+    const month = m;
+
+    const firstDay = new Date(year, month, 1);
+    const startCol = (firstDay.getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    let ROWS;
+    if (P.grid.alwaysSix) ROWS = 6;
+    else ROWS = Math.ceil((startCol + daysInMonth) / 7);
+    const rowGap = ROWS === 5 ? P.grid.rowGap5 : P.grid.rowGap6;
+    const CELL_H = P.date.h + P.room.h;
+    const gridStart = new Date(year, month, 1 - startCol);
+
+    const page = doc.addPage([PAGE_W, PAGE_H]);
+
+    // Плашка
+    page.drawRectangle({
+      x: 0, y: 0, width: PAGE_W, height: P.bar.h,
+      color: rgb(P.bar.bg.r, P.bar.bg.g, P.bar.bg.b),
+    });
+
+    // Изображения с clip по плашке
+    {
+      const { pushGraphicsState, popGraphicsState, moveTo, lineTo, closePath, clip, endPath } = PDFLib;
+      const doClip = P.bar.clip;
+      for (const { cfg, img, dim } of pdfImages) {
+        if (doClip && cfg.clip) {
+          page.pushOperators(
+            pushGraphicsState(),
+            moveTo(0, 0), lineTo(PAGE_W, 0),
+            lineTo(PAGE_W, P.bar.h), lineTo(0, P.bar.h),
+            closePath(), clip(), endPath()
+          );
+        }
+        const w = cfg.baseW * cfg.scale;
+        const h = w * (dim.h / dim.w);
+        page.drawImage(img, {
+          x: cfg.x - w/2, y: cfg.y - h/2,
+          width: w, height: h,
+          opacity: cfg.opacity,
+        });
+        if (doClip && cfg.clip) page.pushOperators(popGraphicsState());
+      }
+    }
+
+    // Тексты плашки
+    const lineGapPx = P.bar.line1Size * P.bar.lineGap;
+    const midY = P.bar.h / 2 + P.bar.dy;
+    const y1 = midY + lineGapPx / 2;
+    const y2 = midY - lineGapPx / 2;
+
+    page.drawText(P.bar.line1, {
+      x: P.bar.dx, y: y1 - P.bar.line1Size * 0.35,
+      size: P.bar.line1Size, font: fontBarLine1,
+      color: rgb(P.bar.line1Color.r, P.bar.line1Color.g, P.bar.line1Color.b),
+    });
+    const line2Text = P.bar.line2.replace(/МЕСЯЦ/g, MONTHS_RU[month]).replace(/ГОД/g, String(year));
+    page.drawText(line2Text, {
+      x: P.bar.dx, y: y2 - P.bar.line2Size * 0.35,
+      size: P.bar.line2Size, font: fontBarLine2,
+      color: rgb(P.bar.line2Color.r, P.bar.line2Color.g, P.bar.line2Color.b),
+    });
+
+    // Ячейки
+    for (let i = 0; i < ROWS * COLS; i++) {
+      const cellDate = new Date(gridStart);
+      cellDate.setDate(gridStart.getDate() + i);
+      const r = Math.floor(i / COLS), c = i % COLS;
+      const isCurrent = cellDate.getMonth() === month;
+      const x0 = P.grid.sideMargin + c * (CELL_W + P.grid.colGap);
+      const yTopDate = GRID_TOP - r * (CELL_H + rowGap);
+      const yTopRoom = yTopDate - P.date.h;
+
+      const dateStr = String(cellDate.getDate());
+      const dateSize = P.date.size;
+      const dateColor = isCurrent ? P.date.color : P.date.colorOther;
+      const dateW = fontDate.widthOfTextAtSize(dateStr, dateSize);
+      page.drawText(dateStr, {
+        x: x0 + CELL_W/2 - dateW/2 + P.date.dx,
+        y: yTopDate - P.date.h/2 + P.date.dy - dateSize * 0.35,
+        size: dateSize, font: fontDate,
+        color: rgb(dateColor.r, dateColor.g, dateColor.b),
+      });
+
+      const key = cellDate.getFullYear() + "-" +
+                  String(cellDate.getMonth()+1).padStart(2,"0") + "-" +
+                  String(cellDate.getDate()).padStart(2,"0");
+      const room = schedule.get(key);
+      if (room !== undefined) {
+        const roomStr = formatRoom(room, P.room, rooms);
+        const roomSize = P.room.size;
+        const roomColor = isCurrent ? P.room.color : P.room.colorOther;
+        const roomW = fontRoom.widthOfTextAtSize(roomStr, roomSize);
+        page.drawText(roomStr, {
+          x: x0 + CELL_W/2 - roomW/2 + P.room.dx,
+          y: yTopRoom + P.room.h/2 + P.room.dy - roomSize * 0.35,
+          size: roomSize, font: fontRoom,
+          color: rgb(roomColor.r, roomColor.g, roomColor.b),
+        });
+      }
+    }
+
+    // Дни недели
+    for (let c = 0; c < COLS; c++) {
+      const x0 = P.grid.sideMargin + c * (CELL_W + P.grid.colGap);
+      const label = getWeekdayLabel(c, P.weekday.form, P.weekday.case);
+      page.drawText(label, {
+        x: x0 + P.weekday.padLeft,
+        y: P.weekday.y,
+        size: P.weekday.size, font: fontWd,
+        color: rgb(P.weekday.color.r, P.weekday.color.g, P.weekday.color.b),
+      });
+    }
+
+    // Вертикальные линии
+    for (let c = 1; c < COLS; c++) {
+      const xLine = P.grid.sideMargin + c * (CELL_W + P.grid.colGap) - P.grid.colGap / 2;
+      page.drawLine({
+        start: { x: xLine, y: PAGE_H - P.line.bottom },
+        end:   { x: xLine, y: PAGE_H - P.line.top },
+        thickness: P.line.w,
+        color: rgb(P.line.color.r, P.line.color.g, P.line.color.b),
+      });
+    }
+
+    // Горизонтальные линии
+    if (P.line.horiz) {
+      for (let r = 1; r < ROWS; r++) {
+        const yMid = GRID_TOP - r * CELL_H - (r - 1) * rowGap - rowGap / 2;
+        page.drawLine({
+          start: { x: P.grid.sideMargin + P.line.horizPad, y: yMid },
+          end:   { x: PAGE_W - P.grid.sideMargin - P.line.horizPad, y: yMid },
+          thickness: P.line.horizW,
+          color: rgb(P.line.color.r, P.line.color.g, P.line.color.b),
+        });
+      }
+    }
+
+    // ARTemaARTema
+    const artTextW = fontArt.widthOfTextAtSize(P.art.text, P.art.size);
+    const artW = artTextW + P.art.padX * 2;
+    const artX = PAGE_W - artW - P.art.right;
+    const artY = PAGE_H - P.art.h - P.art.top;
+    page.drawText(P.art.text, {
+      x: artX + P.art.padX,
+      y: artY + P.art.h/2 - P.art.size * 0.35,
+      size: P.art.size, font: fontArt,
+      color: rgb(P.art.color.r, P.art.color.g, P.art.color.b),
+      opacity: P.art.opacity,
+    });
+
+    log(`Страница ${MONTHS_RU[month]} ${year}`);
+  }
+
+  const bytes = await doc.save();
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `ГрафикДежурств.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+  log("PDF сохранён", "ok");
+}
+
+// ============================================================
+//  Экспорт PNG
+// ============================================================
+async function exportPng(scaleFactor) {
+  clearLog();
+  const svg = document.querySelector("#preview svg");
+  if (!svg) { log("Нет превью", "err"); return; }
+  const clone = svg.cloneNode(true);
+  const P = readParams();
+  clone.setAttribute("width", P.page.w * scaleFactor);
+  clone.setAttribute("height", P.page.h * scaleFactor);
+  const svgStr = new XMLSerializer().serializeToString(clone);
+  const svgBlob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = P.page.w * scaleFactor;
+    canvas.height = P.page.h * scaleFactor;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+    canvas.toBlob(blob => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `ГрафикДежурств_${scaleFactor}x.png`;
+      a.click();
+      log(`PNG (${scaleFactor}x) сохранён`);
+    }, "image/png");
+  };
+  img.onerror = () => { log("Ошибка рендера PNG", "err"); URL.revokeObjectURL(url); };
+  img.src = url;
+}
+
+// ============================================================
+//  Шаблон №11
+// ============================================================
+const TEMPLATE_11 = {
+  page: { w: 297, h: 210, scale: 1.1 },
+  grid: { rows: 5, alwaysSix: false, topMargin: 15.9, sideMargin: 0, colGap: 0, rowGap5: 11.5, rowGap6: 6 },
+  date: { h: 18.3, size: 48.5, font: "gilroy",
+    color: {r:0.0039,g:0.0039,b:0.0039}, colorOther: {r:0.698,g:0.698,b:0.698},
+    dx: 0, dy: 3.5 },
+  room: { h: -0.8, size: 18, font: "montserrat",
+    color: {r:0.502,g:0.290,b:0.580}, colorOther: {r:0.698,g:0.698,b:0.698},
+    dx: 0, dy: 3.4, template: "НОМЕР", showFloor: false, floor: 0 },
+  bar: { h: 44.2, bg: {r:0.502,g:0.290,b:0.580},
+    line1: "График дежурств", line1Font: "gilroyLight", line1Size: 29,
+    line1Color: {r:1,g:1,b:1},
+    line2: "МЕСЯЦ ГОД", line2Font: "gilroy", line2Size: 37,
+    line2Color: {r:1,g:1,b:1},
+    dx: 44.8, dy: -0.3, lineGap: 1.25, clip: true },
+  art: { font: "gilroy", size: 12, h: 10.6,
+    right: 7.5, top: 0.5, padX: 2,
+    color: {r:0.502,g:0.290,b:0.580},
+    opacity: 0.4 },
+  weekday: { size: 15, font: "montserrat", form: "short", case: "upper",
+    color: {r:0.0039,g:0.0039,b:0.0039},
+    padLeft: 3.8, y: 54.4 },
+  line: { w: 0.5, color: {r:0.0039,g:0.0039,b:0.0039},
+    top: 11.6, bottom: 155.6, horiz: false, horizW: 0.5, horizPad: 0 },
+  test: { monthFrom: "2026-12", monthTo: "2026-12",
+    rooms: "1-9, 21-25",
+    lastRoom: 22, lastDate: "2025-12-29",
+    order: "forward",
+    previewMonth: "2026-12" },
+  images: [
+    { id: "img1", name: "Логотип", x: 22, y: 22.6, scale: 1, baseW: 23,
+      opacity: 1, blend: "normal", bright: 0, contrast: 100, sat: 100, clip: true },
+    { id: "img2", name: "Фон", x: 226.3, y: 21.8, scale: 1, baseW: 144,
+      opacity: 1, blend: "normal", bright: 0, contrast: 100, sat: 100, clip: true },
+  ],
+};
+
+// ============================================================
+//  Кнопки
+// ============================================================
+let autoUpdate = true;
+document.getElementById("btnRefresh").addEventListener("click", () => render());
+document.getElementById("btnAuto").addEventListener("click", e => {
+  autoUpdate = !autoUpdate;
+  e.target.textContent = "Авто: " + (autoUpdate ? "ВКЛ" : "ВЫКЛ");
+});
+
+document.getElementById("btnCopy").addEventListener("click", () => {
+  const P = readParams();
+  // Конвертация pt → мм для размеров (кроме шрифтов). Изображения — base64 as-is.
+  const out = {
+    page: { w: toMm(P.page.w), h: toMm(P.page.h), scale: P.page.scale },
+    grid: { rows: P.grid.rows, alwaysSix: P.grid.alwaysSix,
+      topMargin: toMm(P.grid.topMargin), sideMargin: toMm(P.grid.sideMargin),
+      colGap: toMm(P.grid.colGap),
+      rowGap5: toMm(P.grid.rowGap5), rowGap6: toMm(P.grid.rowGap6) },
+    date: { h: toMm(P.date.h), size: P.date.size, font: P.date.font,
+      color: P.date.color, colorOther: P.date.colorOther,
+      dx: toMm(P.date.dx), dy: toMm(P.date.dy) },
+    room: { h: toMm(P.room.h), size: P.room.size, font: P.room.font,
+      color: P.room.color, colorOther: P.room.colorOther,
+      dx: toMm(P.room.dx), dy: toMm(P.room.dy),
+      template: P.room.template, showFloor: P.room.showFloor, floor: P.room.floor },
+    bar: { h: toMm(P.bar.h), bg: P.bar.bg,
+      line1: P.bar.line1, line1Font: P.bar.line1Font,
+      line1Size: P.bar.line1Size, line1Color: P.bar.line1Color,
+      line2: P.bar.line2, line2Font: P.bar.line2Font,
+      line2Size: P.bar.line2Size, line2Color: P.bar.line2Color,
+      dx: toMm(P.bar.dx), dy: toMm(P.bar.dy), lineGap: P.bar.lineGap,
+      clip: P.bar.clip },
+    art: { font: P.art.font, size: P.art.size, h: toMm(P.art.h),
+      right: toMm(P.art.right), top: toMm(P.art.top), padX: toMm(P.art.padX),
+      color: P.art.color, opacity: P.art.opacity },
+    weekday: { size: P.weekday.size, font: P.weekday.font,
+      form: P.weekday.form, case: P.weekday.case,
+      color: P.weekday.color,
+      padLeft: toMm(P.weekday.padLeft), y: toMm(P.weekday.y) },
+    line: { w: toMm(P.line.w), color: P.line.color,
+      top: toMm(P.line.top), bottom: toMm(P.line.bottom),
+      horiz: P.line.horiz, horizW: toMm(P.line.horizW), horizPad: toMm(P.line.horizPad) },
+    test: P.test,
+    images: images.map(im => ({
+      id: im.id, name: im.name, dataUrl: im.dataUrl,
+      x: im.x, y: im.y, scale: im.scale, baseW: im.baseW,
+      opacity: im.opacity, blend: im.blend,
+      bright: im.bright, contrast: im.contrast, sat: im.sat, clip: im.clip,
+    })),
+  };
+  const json = JSON.stringify(out, null, 2);
+  navigator.clipboard.writeText(json).then(
+    () => log("Параметры шаблона скопированы (" + Math.round(json.length/1024) + " КБ)"),
+    () => log("Не удалось скопировать", "err")
+  );
+});
+
+document.getElementById("btnPdf").addEventListener("click", () => exportPdf());
+document.getElementById("btnPng").addEventListener("click", () => {
+  const scale = prompt("Масштаб PNG (1, 2, 3, 4):", "2");
+  const s = parseInt(scale, 10);
+  if ([1,2,3,4].includes(s)) exportPng(s);
+});
+
+// Шаблоны
+let savedTemplates = { "tpl11": TEMPLATE_11 };
+
+document.getElementById("btnTplSave").addEventListener("click", () => {
+  const name = prompt("Имя шаблона:", "Мой шаблон " + (Object.keys(savedTemplates).length + 1));
+  if (!name) return;
+  const P = readParams();
+  savedTemplates[name] = { ...P, images: JSON.parse(JSON.stringify(images)) };
+  const sel = document.getElementById("tplSelect");
+  const opt = document.createElement("option");
+  opt.value = name;
+  opt.textContent = name;
+  sel.appendChild(opt);
+  sel.value = name;
+  log("Шаблон сохранён: " + name);
+});
+
+document.getElementById("tplSelect").addEventListener("change", e => {
+  const name = e.target.value;
+  if (!name || !savedTemplates[name]) return;
+  applyParams(savedTemplates[name]);
+  log("Шаблон применён: " + name);
+  render();
+});
+
+document.getElementById("btnTplApply").addEventListener("click", () => {
+  const txt = document.getElementById("tplPaste").value.trim();
+  if (!txt) return;
+  try {
+    const P = JSON.parse(txt);
+    applyParams(P);
+    document.getElementById("tplPaste").value = "";
+    log("Шаблон из JSON применён");
+    render();
+  } catch (e) {
+    log("Ошибка JSON: " + e.message, "err");
+  }
+});
+
+// Формат листа
+document.getElementById("pPageFormat").addEventListener("change", e => {
+  const v = e.target.value;
+  if (v === "custom") return;
+  const f = PAGE_FORMATS[v];
+  if (!f) return;
+  document.getElementById("pPageW").value = f.w;
+  document.getElementById("pPageH").value = f.h;
+  render();
+});
+
+document.getElementById("panel").addEventListener("input", () => { if (autoUpdate) render(); });
+document.getElementById("panel").addEventListener("change", () => { if (autoUpdate) render(); });
+
+// ============================================================
+//  Старт
+// ============================================================
+(async () => {
+  refreshFontSelects();
+  refreshFontList();
+  renderImagesList();
+  await loadAllFontFaces();
+  render();
+})();
+</script>
+
+</body>
+</html>
