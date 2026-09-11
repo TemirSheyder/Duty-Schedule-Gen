@@ -1,5 +1,5 @@
 {
-  "page": { "w": 297, "h": 210, "scale": 1.4 },
+  "page": { "w": 297, "h": 210, "scale": 0.7 },
   "grid": {
     "rows": 5,
     "alwaysSix": false,
