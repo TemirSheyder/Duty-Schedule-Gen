@@ -1,10 +1,14 @@
 {
-  "page": { "w": 297, "h": 210, "scale": 0.8 },
+  "page": {
+    "w": 297,
+    "h": 210,
+    "scale": 0.8
+  },
   "grid": {
     "rows": 5,
     "alwaysSix": false,
     "topMargin": 15.9,
-    "sideMargin": 0,
+    "sideMargin": 3.5,
     "colGap": 0,
     "rowGap5": 11.5,
     "rowGap6": 6
@@ -14,36 +18,64 @@
     "size": 48.5,
     "font": "gilroy",
     "fontOther": "gilroyLight",
-    "color":      { "r": 0.0235, "g": 0.0196, "b": 0.0196 },
-    "colorOther": { "r": 0.698,  "g": 0.698,  "b": 0.698  },
+    "color": {
+      "r": 0.023529411764705882,
+      "g": 0.0196078431372549,
+      "b": 0.0196078431372549
+    },
+    "colorOther": {
+      "r": 0.6980392156862745,
+      "g": 0.6980392156862745,
+      "b": 0.6980392156862745
+    },
     "dx": 0,
-    "dy": 3.5
+    "dy": -1
   },
   "room": {
     "h": -0.8,
-    "size": 18,
-    "font": "montserrat",
-    "fontOther": "montserratReg",
-    "color":      { "r": 0.929, "g": 0.231, "b": 0.318 },
-    "colorOther": { "r": 0.698, "g": 0.698, "b": 0.698 },
-    "dx": 0,
-    "dy": 3.4,
+    "size": 15,
+    "font": "montserratLight",
+    "fontOther": "helvetica",
+    "color": {
+      "r": 0.8941176470588236,
+      "g": 0.3058823529411765,
+      "b": 0.37254901960784315
+    },
+    "colorOther": {
+      "r": 0.6980392156862745,
+      "g": 0.6980392156862745,
+      "b": 0.6980392156862745
+    },
+    "dx": -14.200000000000001,
+    "dy": -1.1,
     "template": "НОМЕР",
-    "showFloor": false,
-    "floor": 0
+    "showFloor": true,
+    "floor": 5
   },
   "bar": {
     "h": 44.2,
-    "bg": { "r": 0.929, "g": 0.231, "b": 0.318 },
+    "bg": {
+      "r": 0.8941176470588236,
+      "g": 0.3058823529411765,
+      "b": 0.37254901960784315
+    },
     "line1": "График дежурств",
     "line1Font": "gilroyThin",
     "line1Size": 29,
-    "line1Color": { "r": 1, "g": 1, "b": 1 },
-    "line2": "МЕСЯЦ ГОД",
+    "line1Color": {
+      "r": 1,
+      "g": 1,
+      "b": 1
+    },
+    "line2": "ГОД МЕСЯЦ",
     "line2Font": "montserratBold",
     "line2Size": 35,
-    "line2Color": { "r": 1, "g": 1, "b": 1 },
-    "dx": 44.8,
+    "line2Color": {
+      "r": 1,
+      "g": 1,
+      "b": 1
+    },
+    "dx": 12.3,
     "dy": -0.3,
     "lineGap": 1.25,
     "clip": true
@@ -52,28 +84,40 @@
     "font": "gilroy",
     "size": 12,
     "h": 10.6,
-    "right": 7.5,
+    "right": 7.500000000000001,
     "top": 0.5,
     "padX": 2,
-    "color": { "r": 0.459, "g": 0.459, "b": 0.459 },
+    "color": {
+      "r": 0.4588235294117647,
+      "g": 0.4588235294117647,
+      "b": 0.4588235294117647
+    },
     "opacity": 0.39
   },
   "weekday": {
-    "size": 15,
+    "size": 13.5,
     "font": "montserrat",
     "form": "short",
     "case": "upper",
-    "color": { "r": 0.459, "g": 0.459, "b": 0.459 },
-    "padLeft": 3.8,
-    "y": 54.4
+    "color": {
+      "r": 0.4588235294117647,
+      "g": 0.4588235294117647,
+      "b": 0.4588235294117647
+    },
+    "padLeft": 2.4,
+    "y": 48.2
   },
   "line": {
-    "w": 0.5,
-    "color": { "r": 0.102, "g": 0.102, "b": 0.102 },
-    "top": 11.6,
+    "w": 0.05,
+    "color": {
+      "r": 0.10196078431372549,
+      "g": 0.10196078431372549,
+      "b": 0.10196078431372549
+    },
+    "top": 10.6,
     "bottom": 155.6,
-    "horiz": false,
-    "horizW": 0.5,
+    "horiz": true,
+    "horizW": 0.3,
     "horizPad": 0
   },
   "test": {
@@ -87,27 +131,12 @@
   },
   "images": [
     {
-      "id": "img1",
-      "name": "Фон",
-      "file": "Polosi.png",
-      "x": 226.3,
-      "y": 22,
-      "scale": 1,
-      "baseW": 143,
-      "opacity": 1,
-      "blend": "normal",
-      "bright": 0,
-      "contrast": 100,
-      "sat": 100,
-      "clip": true
-    },
-    {
       "id": "img2",
       "name": "Логотип",
       "file": "politech logo@2x.png",
-      "x": 22,
-      "y": 22.6,
-      "scale": 1,
+      "x": 776.5034722997684,
+      "y": 63.610416670881605,
+      "scale": 1.75,
       "baseW": 40,
       "opacity": 1,
       "blend": "normal",
