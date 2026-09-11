@@ -89,7 +89,7 @@
     {
       "id": "img1",
       "name": "Фон",
-      "file": "BlackPattern.png",
+      "file": "black-pattern.png",
       "x": 226.3,
       "y": 22,
       "scale": 1,
@@ -104,7 +104,7 @@
     {
       "id": "img2",
       "name": "Логотип",
-      "file": "BlackLogo.png",
+      "file": "black-logo.png",
       "x": 22,
       "y": 22.6,
       "scale": 1,
