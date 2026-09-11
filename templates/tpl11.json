@@ -17,7 +17,7 @@
     "h": 18.3,
     "size": 48.5,
     "font": "gilroy",
-    "fontOther": "gilroy",
+    "fontOther": "gilroyLight",
     "color": {
       "r": 0.00392156862745098,
       "g": 0.00392156862745098,
@@ -35,7 +35,7 @@
     "h": -0.8,
     "size": 18,
     "font": "montserrat",
-    "fontOther": "montserrat",
+    "fontOther": "montserratReg",
     "color": {
       "r": 0.5019607843137255,
       "g": 0.2901960784313726,
