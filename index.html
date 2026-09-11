@@ -909,13 +909,13 @@ function rgbCss(c) {
 }
 function fontFamilyCss(name) {
   const f = FONTS[name];
-  if (!f) return "Arial,sans-serif";
+  if (!f) return "Arial, sans-serif";
   if (f.builtin) {
-    if (name === "helvetica") return "Helvetica,Arial,sans-serif";
-    if (name === "times") return "'Times New Roman',Times,serif";
-    if (name === "courier") return "'Courier New',Courier,monospace";
+    if (name === "helvetica") return "Helvetica, Arial, sans-serif";
+    if (name === "times") return "'Times New Roman', Times, serif";
+    if (name === "courier") return "'Courier New', Courier, monospace";
   }
-  return `"${f.label}",Arial,sans-serif`;
+  return `'${f.label}', Arial, sans-serif`;
 }
 function svgBlendMode(name) {
   return ["multiply","screen","overlay","darken","lighten"].includes(name) ? name : "normal";
