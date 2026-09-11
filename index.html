@@ -1557,8 +1557,14 @@ document.getElementById("pPageFormat").addEventListener("change", e => {
   render();
 });
 
-document.getElementById("panel").addEventListener("input", () => { if (autoUpdate) render(); });
-document.getElementById("panel").addEventListener("change", () => { if (autoUpdate) render(); });
+document.getElementById("panel").addEventListener("input", (e) => {
+  if (e.target && e.target.id === "tplSelect") return;
+  if (autoUpdate) render();
+});
+document.getElementById("panel").addEventListener("change", (e) => {
+  if (e.target && e.target.id === "tplSelect") return;
+  if (autoUpdate) render();
+});
 
 // ============================================================
 //  Старт
