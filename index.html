@@ -6,6 +6,11 @@
 <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
 <style>
+  :root {
+    --accent: #804A94;
+    --accent-soft: #faf7fc;
+    --accent-hover: #f3eafb;
+  }
   * { box-sizing: border-box; }
   body {
     margin: 0; font-family: system-ui, Arial, sans-serif; font-size: 13px;
@@ -14,17 +19,17 @@
   #panel {
     width: 460px; min-width: 460px; height: 100vh;
     overflow-y: auto; background: #fff; border-right: 1px solid #ccc;
-    padding: 10px;
+    padding: 10px; position: relative;
   }
-  #panel h1 { font-size: 16px; margin: 0 0 12px; }
+  #panel h1 { font-size: 16px; margin: 0 0 12px; color: var(--accent); transition: color .2s; }
   details { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 8px; background: #fff; }
   details[open] { background: #fefefe; }
   summary {
     cursor: pointer; padding: 8px 10px; font-weight: bold; font-size: 12px;
-    color: #804A94; user-select: none; border-radius: 6px;
-    background: #faf7fc;
+    color: var(--accent); user-select: none; border-radius: 6px;
+    background: var(--accent-soft); transition: background .2s, color .2s;
   }
-  summary:hover { background: #f3eafb; }
+  summary:hover { background: var(--accent-hover); }
   details[open] summary { border-bottom: 1px solid #eee; border-radius: 6px 6px 0 0; }
   .details-body { padding: 8px 10px 10px; }
   .field { display: flex; align-items: center; margin: 4px 0; gap: 6px; }
@@ -39,11 +44,13 @@
   .btns { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
   button {
     flex: 1; padding: 7px 10px; font-size: 12px; cursor: pointer;
-    border: none; border-radius: 4px; background: #804A94; color: #fff;
+    border: none; border-radius: 4px; background: var(--accent); color: #fff;
+    transition: background .2s, opacity .2s;
   }
   button.secondary { background: #555; }
   button.mini { flex: none; padding: 3px 8px; font-size: 11px; }
   button:hover { opacity: 0.9; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
   #log {
     background: #fafafa; padding: 6px; border-radius: 4px; font-family: monospace;
     font-size: 11px; max-height: 140px; overflow: auto; white-space: pre-wrap;
@@ -52,6 +59,7 @@
   #previewWrap {
     flex: 1; height: 100vh; overflow: auto; padding: 20px;
     display: flex; flex-direction: column; align-items: center; gap: 20px;
+    position: relative;
   }
   .pagePreview {
     background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
@@ -61,14 +69,14 @@
   .hint { font-size: 11px; color: #888; margin: 4px 0; }
   .colorGroup { background: #f9f9f9; border-radius: 4px; padding: 6px 8px; margin: 4px 0; }
   .colorGroup > .field { margin: 2px 0; }
-  .dragHint { font-size: 11px; color: #804A94; margin-top: 4px; font-style: italic; }
+  .dragHint { font-size: 11px; color: var(--accent); margin-top: 4px; font-style: italic; }
   .row2 { display: flex; gap: 8px; }
   .row2 > div { flex: 1; }
   .fontList { font-size: 11px; }
   .fontItem { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid #eee; }
   .fontItem:last-child { border-bottom: none; }
   .fontItem .name { flex: 1; }
-  .muted { color: #804A94; font-style: italic; font-size: 11px; margin-top: 4px; }
+  .muted { color: var(--accent); font-style: italic; font-size: 11px; margin-top: 4px; transition: color .2s; }
   .imgCard {
     border: 1px solid #e0e0e0; border-radius: 4px; padding: 6px 8px;
     margin: 6px 0; background: #fafafa;
@@ -78,9 +86,97 @@
     font-weight: bold; color: #555; margin-bottom: 4px;
   }
   .imgCard .imgHeader .name { flex: 1; }
+
+  /* ============ Прогресс ============ */
+  #topProgress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px; width: 0%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    transition: width .15s ease-out, background .2s;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0;
+  }
+  #topProgress.active { opacity: 1; }
+
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255,255,255,.55);
+    backdrop-filter: blur(2px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  }
+  #overlay.active { display: flex; }
+  .overlayCard {
+    background: #fff;
+    border-radius: 10px;
+    padding: 22px 28px;
+    box-shadow: 0 6px 30px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 14px;
+    color: #333;
+    min-width: 260px;
+    max-width: 90vw;
+  }
+  .spinner {
+    width: 22px; height: 22px;
+    border: 3px solid #eee;
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    flex: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .overlayText { line-height: 1.3; }
+  .overlayText b { display: block; color: var(--accent); }
+
+  #previewLoader {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    pointer-events: none;
+  }
+  #previewLoader.active { display: flex; }
+
+  /* ============ Сводка ============ */
+  .summaryRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid #eee;
+  }
+  .summaryRow:last-child { border-bottom: none; }
+  .summaryRow input[type="color"] {
+    width: 36px; height: 24px; padding: 0; border: 1px solid #ccc; flex: none;
+  }
+  .summaryRow select {
+    width: 150px; padding: 3px 5px; font-size: 12px; flex: none;
+  }
+  .summaryRow .usage {
+    flex: 1; font-size: 11px; color: #666; line-height: 1.2;
+  }
+  .summaryRow .usage b { color: #333; font-weight: 600; }
+  .summaryRow .cnt {
+    font-size: 10px; color: #888; background: #f0f0f0;
+    border-radius: 8px; padding: 1px 6px; flex: none;
+  }
 </style>
 </head>
 <body>
+
+<div id="topProgress"></div>
 
 <div id="panel">
   <h1>Генератор графиков дежурств</h1>
@@ -113,7 +209,7 @@
       <div class="btns" style="margin:0">
         <button class="secondary mini" id="btnTplApply" style="flex:1">Применить JSON</button>
       </div>
-      <div class="hint">После применения поле вставки очищается.</div>
+      <div class="hint">Шаблон можно сохранить в виде текста или в формате JSON, а затем использовать снова. Если хотите, чтобы ваш шаблон добавили в общий доступ — пишите @ArtemSavitskiy</div>
     </div>
   </details>
 
@@ -121,7 +217,7 @@
   <details open>
     <summary>Настройки</summary>
     <div class="details-body">
-      <div class="hint">1. Период и комнаты</div>
+      <div class="hint">1. Выберите период и отметьте имеющиеся комнаты</div>
       <div class="field"><label>С месяца</label><input type="month" id="tMonthFrom" value="2026-12"></div>
       <div class="field"><label>По месяц</label><input type="month" id="tMonthTo" value="2026-12"></div>
       <div class="field" style="align-items:flex-start">
@@ -130,7 +226,8 @@
       </div>
       <div class="hint">Формат: диапазоны через запятую. Пример: 1-9, 21-25, 30, 42-45</div>
       <div class="field"><label>Последняя дежурившая комната</label><input type="number" id="tLastRoom" value="22" step="1"></div>
-      <div class="field"><label>Дата последнего деж.</label><input type="date" id="tLastDate" value="2025-12-29"></div>
+      <div class="hint">Отметьте любой номер комнаты и дату дежурства, какие помните, чтобы отправная точка составления расписания была верной.</div>
+      <div class="field"><label>Дата последнего дежурства</label><input type="date" id="tLastDate" value="2025-12-29"></div>
       <div class="field"><label>Порядок комнат</label>
         <select id="tOrder">
           <option value="forward" selected>Прямой</option>
@@ -138,7 +235,7 @@
         </select>
       </div>
 
-      <div class="hint" style="margin-top:8px">2. Предпросмотр</div>
+      <div class="hint" style="margin-top:8px">2. Предпросмотр (в окне предпросмотра отображается только один выбранный месяц. Выбранный промежуток доступен при сохранении в PDF или PNG.)</div>
       <div class="field"><label>Месяц предпросмотра</label><input type="month" id="tPreviewMonth" value="2026-12"></div>
       <div class="field"><label>Масштаб превью</label><input type="number" id="pScale" value="1.1" step="0.05"><span class="unit">×</span></div>
       <div class="field"><label>Строк на превью</label>
@@ -157,7 +254,7 @@
           <option value="A3-p">A3 книжная (297×420)</option>
           <option value="A5-l">A5 альбомная (210×148)</option>
           <option value="A5-p">A5 книжная (148×210)</option>
-          <option value="custom" selected>Свой</option>
+          <option value="custom" selected>Пользовательский</option>
         </select>
       </div>
       <div class="row2">
@@ -184,8 +281,8 @@
     <summary>Даты</summary>
     <div class="details-body">
       <div class="field"><label>Высота</label><input type="number" id="pDateH" value="18.3" step="0.1"><span class="unit">мм</span></div>
-      <div class="field"><label>Шрифт (текущий)</label><select id="pDateFont"></select></div>
-      <div class="field"><label>Шрифт (соседний)</label><select id="pDateFontOther"></select></div>
+      <div class="field"><label>Шрифт (основной)</label><select id="pDateFont"></select></div>
+      <div class="field"><label>Шрифт (дополнительный)</label><select id="pDateFontOther"></select></div>
       <div class="field"><label>Размер</label><input type="number" id="pDateSize" value="48.5" step="0.5"><span class="unit">pt</span></div>
       <div class="field"><label>Смещение X</label><input type="number" id="pDateDX" value="0" step="0.1"><span class="unit">мм</span></div>
       <div class="field"><label>Смещение Y</label><input type="number" id="pDateDY" value="3.5" step="0.1"><span class="unit">мм</span></div>
@@ -197,19 +294,16 @@
     <summary>Номера комнат</summary>
     <div class="details-body">
       <div class="field"><label>Высота (может быть &lt; 0)</label><input type="number" id="pRoomH" value="-0.8" step="0.1"><span class="unit">мм</span></div>
-      <div class="field"><label>Шрифт (текущий)</label><select id="pRoomFont"></select></div>
-      <div class="field"><label>Шрифт (соседний)</label><select id="pRoomFontOther"></select></div>
+      <div class="field"><label>Шрифт (основной)</label><select id="pRoomFont"></select></div>
+      <div class="field"><label>Шрифт (дополнительный)</label><select id="pRoomFontOther"></select></div>
       <div class="field"><label>Размер</label><input type="number" id="pRoomSize" value="18" step="0.5"><span class="unit">pt</span></div>
       <div class="field"><label>Смещение X</label><input type="number" id="pRoomDX" value="0" step="0.1"><span class="unit">мм</span></div>
       <div class="field"><label>Смещение Y</label><input type="number" id="pRoomDY" value="3.4" step="0.1"><span class="unit">мм</span></div>
-      <div class="hint">Шаблон номера (НОМЕР = сам номер):</div>
       <div class="field"><label>Доп. символы</label><input type="text" id="pRoomTemplate" value="НОМЕР"></div>
+      <div class="hint">Шаблон номера (НОМЕР = сам номер):</div>
       <div class="field"><label>Отображать этаж</label><input type="checkbox" id="pRoomShowFloor"></div>
       <div class="field"><label>Этаж</label><input type="number" id="pRoomFloor" value="0" step="1"></div>
-      <div class="hint">
-        Если «Отображать этаж» включено — все номера выравниваются по длине
-        (1 → 001, 13 → 013), и впереди добавляется номер этажа (этаж 4: 401, 417).
-      </div>
+      <div class="hint">Если «Отображать этаж» включено — впереди добавляется номер этажа (этаж 4: 401, 417).</div>
     </div>
   </details>
 
@@ -290,26 +384,21 @@
     </div>
   </details>
 
-  <!-- ============ КАНАЛ ============ -->
-  <details>
-    <summary>Канал создателя генератора</summary>
+  <!-- ============ СВОДКА ПО ЦВЕТАМ ============ -->
+  <details open>
+    <summary>🎨 Сводка по цветам</summary>
     <div class="details-body">
-      <div class="field"><label>Текст</label><span style="flex:2;font-size:12px;color:#804A94;font-weight:600">t.me/ARTemaARTema</span></div>
-      <div class="field"><label>Шрифт</label><select id="pArtFont"></select></div>
-      <div class="field"><label>Размер</label><input type="number" id="pArtSize" value="12" step="0.5"><span class="unit">pt</span></div>
-      <div class="field"><label>Высота плашки</label><input type="number" id="pArtH" value="10.6" step="0.1"><span class="unit">мм</span></div>
-      <div class="field"><label>Отступ справа</label><input type="number" id="pArtRight" value="7.5" step="0.5"><span class="unit">мм</span></div>
-      <div class="field"><label>Отступ сверху</label><input type="number" id="pArtTop" value="0.5" step="0.5"><span class="unit">мм</span></div>
-      <div class="field"><label>Внутр. отступ X</label><input type="number" id="pArtPadX" value="2" step="0.5"><span class="unit">мм</span></div>
-      <div class="field"><label>Цвет текста</label><input type="color" id="pArtColor" value="#804A94"></div>
-      <div class="field"><label>Прозрачность</label><input type="range" id="pArtOpacity" min="0" max="100" value="40"><span id="pArtOpacityVal" style="width:34px;font-size:11px;color:#888;text-align:right">40%</span></div>
-      <div class="muted">Да, ты можешь выкрутить в ноль. Я не буду этому противодействовать. Но мне будет грустно.</div>
+      <div class="hint">
+        Все уникальные цвета из панели. Меняете здесь — меняется везде, где используется этот цвет.
+        Чтобы у одного элемента сделать отдельный цвет — поменяйте его в его секции ниже: в сводке появится новая строка.
+      </div>
+      <div id="colorSummary"></div>
     </div>
   </details>
-
-  <!-- ============ ЦВЕТА ============ -->
+  
+  <!-- ============ ЦВЕТА (отдельные) ============ -->
   <details>
-    <summary>Цвета</summary>
+    <summary>Цвета (по элементам)</summary>
     <div class="details-body">
       <div class="colorGroup">
         <div class="hint">Даты</div>
@@ -338,7 +427,19 @@
     </div>
   </details>
 
-  <!-- ============ ШРИФТЫ ============ -->
+  <!-- ============ СВОДКА ПО ШРИФТАМ ============ -->
+  <details open>
+    <summary>🔤 Сводка по шрифтам</summary>
+    <div class="details-body">
+      <div class="hint">
+        Все уникальные шрифты из панели. Меняете здесь — меняется везде, где используется этот шрифт.
+        Чтобы у одного элемента сделать отдельный шрифт — поменяйте его в его секции выше.
+      </div>
+      <div id="fontSummary"></div>
+    </div>
+  </details>
+  
+    <!-- ============ ШРИФТЫ ============ -->
   <details>
     <summary>Шрифты</summary>
     <div class="details-body">
@@ -346,9 +447,24 @@
       <div class="btns" style="margin-top:8px">
         <button id="btnFontAdd" class="secondary" style="flex:1">+ Добавить шрифт</button>
       </div>
-      <div class="hint">
-        Шрифты загружаются из папки <code>fonts/</code> согласно <code>fonts/index.json</code>.
-      </div>
+      <div class="hint">Вы можете загрузить свои шрифты.</div>
+    </div>
+  </details>
+  
+  <!-- ============ КАНАЛ ============ -->
+  <details>
+    <summary>Канал создателя генератора</summary>
+    <div class="details-body">
+      <div class="field"><label>Текст</label><span style="flex:2;font-size:12px;color:var(--accent);font-weight:600">t.me/ARTemaARTema</span></div>
+      <div class="field"><label>Шрифт</label><select id="pArtFont"></select></div>
+      <div class="field"><label>Размер</label><input type="number" id="pArtSize" value="12" step="0.5"><span class="unit">pt</span></div>
+      <div class="field"><label>Высота плашки</label><input type="number" id="pArtH" value="10.6" step="0.1"><span class="unit">мм</span></div>
+      <div class="field"><label>Отступ справа</label><input type="number" id="pArtRight" value="7.5" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Отступ сверху</label><input type="number" id="pArtTop" value="0.5" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Внутр. отступ X</label><input type="number" id="pArtPadX" value="2" step="0.5"><span class="unit">мм</span></div>
+      <div class="field"><label>Цвет текста</label><input type="color" id="pArtColor" value="#804A94"></div>
+      <div class="field"><label>Прозрачность</label><input type="range" id="pArtOpacity" min="0" max="100" value="40"><span id="pArtOpacityVal" style="width:34px;font-size:11px;color:#888;text-align:right">40%</span></div>
+      <div class="muted">Да, ты можешь выкрутить в ноль. Я не стану этому препятствовать. Но знай, что тем самым ты разбиваешь мне сердце(</div>
     </div>
   </details>
 
@@ -357,6 +473,14 @@
 
 <div id="previewWrap">
   <div class="pagePreview" id="preview"></div>
+  <div id="previewLoader"><div class="spinner"></div></div>
+</div>
+
+<div id="overlay">
+  <div class="overlayCard">
+    <div class="spinner"></div>
+    <div class="overlayText"><b id="overlayTitle">Готовим…</b><span id="overlaySub"></span></div>
+  </div>
 </div>
 
 <script>
@@ -376,6 +500,12 @@ const TEMPLATES_URL = BASE_URL + "templates/";
 const MM = 2.834645669;
 const toPt = mm => mm * MM;
 const toMm = pt => pt / MM;
+
+function clamp(v, min, max) {
+  v = Number(v);
+  if (!isFinite(v)) return min;
+  return Math.max(min, Math.min(max, v));
+}
 
 const PAGE_FORMATS = {
   "A4-l": { w: 297, h: 210 },
@@ -398,6 +528,84 @@ function log(msg, cls) {
   el.scrollTop = el.scrollHeight;
 }
 function clearLog() { document.getElementById("log").innerHTML = ""; }
+
+// ============================================================
+//  Прогресс
+// ============================================================
+const progressEl = document.getElementById("topProgress");
+let progressTimer = null;
+let progressValue = 0;
+
+function progressStart() {
+  progressValue = 0;
+  progressEl.classList.add("active");
+  progressEl.style.width = "0%";
+  clearInterval(progressTimer);
+  progressTimer = setInterval(() => {
+    if (progressValue < 90) {
+      progressValue += Math.max(0.5, (90 - progressValue) * 0.08);
+      progressEl.style.width = progressValue + "%";
+    }
+  }, 100);
+}
+function progressSet(p) {
+  progressValue = Math.max(0, Math.min(100, p));
+  progressEl.style.width = progressValue + "%";
+}
+function progressDone() {
+  clearInterval(progressTimer);
+  progressTimer = null;
+  progressSet(100);
+  setTimeout(() => {
+    progressEl.classList.remove("active");
+    progressEl.style.width = "0%";
+  }, 300);
+}
+
+const overlayEl = document.getElementById("overlay");
+const overlayTitleEl = document.getElementById("overlayTitle");
+const overlaySubEl = document.getElementById("overlaySub");
+function overlayShow(title, sub) {
+  overlayTitleEl.textContent = title || "Готовим…";
+  overlaySubEl.textContent = sub || "";
+  overlayEl.classList.add("active");
+}
+function overlayHide() {
+  overlayEl.classList.remove("active");
+}
+
+const previewLoaderEl = document.getElementById("previewLoader");
+function previewLoader(on) {
+  previewLoaderEl.classList.toggle("active", !!on);
+}
+
+// ============================================================
+//  Динамический акцентный цвет (от цвета плашки)
+// ============================================================
+function hexToRgb(hex) {
+  const h = hex.replace("#", "");
+  return {
+    r: parseInt(h.substr(0,2), 16),
+    g: parseInt(h.substr(2,2), 16),
+    b: parseInt(h.substr(4,2), 16),
+  };
+}
+function rgbToHex(r, g, b) {
+  const c = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
+  return "#" + c(r) + c(g) + c(b);
+}
+function mixWithWhite(hex, ratio) {
+  const { r, g, b } = hexToRgb(hex);
+  return rgbToHex(r + (255 - r) * ratio, g + (255 - g) * ratio, b + (255 - b) * ratio);
+}
+function applyAccentFromBar() {
+  const hex = document.getElementById("pBarBg").value;
+  const soft = mixWithWhite(hex, 0.95);
+  const hover = mixWithWhite(hex, 0.88);
+  document.documentElement.style.setProperty("--accent", hex);
+  document.documentElement.style.setProperty("--accent-soft", soft);
+  document.documentElement.style.setProperty("--accent-hover", hover);
+}
 
 // ============================================================
 //  Реестр шрифтов
@@ -445,7 +653,13 @@ async function loadFontFace(key) {
 }
 
 async function loadAllFontFaces() {
-  for (const key of Object.keys(FONTS)) await loadFontFace(key);
+  const keys = Object.keys(FONTS);
+  let i = 0;
+  for (const key of keys) {
+    await loadFontFace(key);
+    i++;
+    progressSet((i / keys.length) * 40);
+  }
 }
 
 async function getFontBytes(key) {
@@ -507,6 +721,7 @@ document.getElementById("btnFontAdd").addEventListener("click", () => {
     refreshFontList();
     await loadFontFace(key);
     log("Добавлен локальный шрифт: " + key);
+    renderFontSummary();
     render();
   };
   input.click();
@@ -535,7 +750,7 @@ function renderImagesList() {
       <div class="field"><label>Y (центр)</label><input type="number" data-act="y" value="${img.y}" step="0.5"><span class="unit">мм</span></div>
       <div class="field"><label>Базовая ширина</label><input type="number" data-act="baseW" value="${img.baseW}" step="1"><span class="unit">мм</span></div>
       <div class="field"><label>Масштаб</label><input type="number" data-act="scale" value="${img.scale}" step="0.05"><span class="unit">×</span></div>
-      <div class="field"><label>Прозрачность</label><input type="range" data-act="opacity" min="0" max="100" value="${img.opacity*100}"><span data-act="opacityVal" style="width:34px;font-size:11px;color:#888;text-align:right">${Math.round(img.opacity*100)}%</span></div>
+      <div class="field"><label>Прозрачность</label><input type="range" data-act="opacity" min="0" max="100" value="${clamp(img.opacity*100,0,100)}"><span data-act="opacityVal" style="width:34px;font-size:11px;color:#888;text-align:right">${Math.round(clamp(img.opacity*100,0,100))}%</span></div>
       <div class="field"><label>Режим наложения</label>
         <select data-act="blend">
           ${["normal","multiply","screen","overlay","darken","lighten"].map(b =>
@@ -564,7 +779,14 @@ function renderImagesList() {
     card.querySelector('[data-act="name"]').oninput = e => { img.name = e.target.value; };
     const bindNum = (key, sub="") => {
       card.querySelector(`[data-act="${key}"]`).oninput = e => {
-        img[key] = parseFloat(e.target.value);
+        let v = parseFloat(e.target.value);
+        if (key === "opacity") {
+          v = clamp(v, 0, 100);
+          e.target.value = v;
+          img.opacity = v / 100;
+        } else {
+          img[key] = v;
+        }
         if (sub) card.querySelector(`[data-act="${sub}"]`).textContent =
           (key === "opacity" ? Math.round(img.opacity*100) + "%" : img[key]);
         if (autoUpdate) render();
@@ -602,6 +824,7 @@ async function resolveImage(imgCfg) {
 
 async function preloadImages(imagesCfg) {
   const out = [];
+  let i = 0;
   for (const cfg of imagesCfg) {
     try {
       const dataUrl = await resolveImage(cfg);
@@ -610,6 +833,8 @@ async function preloadImages(imagesCfg) {
       log("Изображение не загружено: " + (cfg.file || cfg.name) + " — " + e.message, "err");
       out.push({ ...cfg, dataUrl: null });
     }
+    i++;
+    progressSet(40 + (i / imagesCfg.length) * 20);
   }
   return out;
 }
@@ -717,7 +942,7 @@ function readParams() {
       right: mmv("pArtRight"), top: mmv("pArtTop"),
       padX: mmv("pArtPadX"),
       color: color("pArtColor"),
-      opacity: num("pArtOpacity") / 100,
+      opacity: clamp(num("pArtOpacity"), 0, 100) / 100,
     },
     weekday: {
       size: fsv("pWdSize"), font: str("pWdFont"),
@@ -793,7 +1018,9 @@ function applyParams(P) {
     setNum("pArtRight", P.art.right); setNum("pArtTop", P.art.top);
     setNum("pArtPadX", P.art.padX);
     setCol("pArtColor", P.art.color);
-    setNum("pArtOpacity", P.art.opacity * 100);
+    const o = Number(P.art.opacity);
+    const opPct = (o > 1 ? o : o * 100);
+    setNum("pArtOpacity", clamp(opPct, 0, 100));
   }
   if (P.weekday) {
     setNum("pWdSize", P.weekday.size); setStr("pWdFont", P.weekday.font);
@@ -826,7 +1053,12 @@ function applyParams(P) {
       x: im.x, y: im.y,
       scale: im.scale ?? 1,
       baseW: im.baseW ?? 40,
-      opacity: im.opacity ?? 1,
+      opacity: (() => {
+        let o = Number(im.opacity);
+        if (!isFinite(o)) return 1;
+        if (o > 1) o = o / 100;
+        return clamp(o, 0, 1);
+      })(),
       blend: im.blend || "normal",
       bright: im.bright ?? 0,
       contrast: im.contrast ?? 100,
@@ -837,8 +1069,14 @@ function applyParams(P) {
   }
   const ao = document.getElementById("pArtOpacity");
   const aol = document.getElementById("pArtOpacityVal");
-  if (ao && aol) aol.textContent = ao.value + "%";
+  if (ao && aol) {
+    ao.value = clamp(ao.value, 0, 100);
+    aol.textContent = Math.round(Number(ao.value)) + "%";
+  }
   updateAlwaysSixLock();
+  applyAccentFromBar();
+  renderColorSummary();
+  renderFontSummary();
 }
 
 // ============================================================
@@ -854,6 +1092,145 @@ document.getElementById("pAlwaysSix").addEventListener("change", () => {
   updateAlwaysSixLock();
   if (autoUpdate) render();
 });
+
+// ============================================================
+//  Сводка по цветам и шрифтам
+// ============================================================
+// Карта: id поля → человекочитаемое имя
+const COLOR_FIELDS = [
+  { id: "pDateColor",        label: "Даты (основной)" },
+  { id: "pDateColorOther",   label: "Даты (доп.)" },
+  { id: "pRoomColor",        label: "Комнаты (основной)" },
+  { id: "pRoomColorOther",   label: "Комнаты (доп.)" },
+  { id: "pBarBg",            label: "Плашка: фон" },
+  { id: "pBarLine1Color",    label: "Плашка: строка 1" },
+  { id: "pBarLine2Color",    label: "Плашка: строка 2" },
+  { id: "pWdColor",          label: "Дни недели" },
+  { id: "pLineColor",        label: "Линии" },
+  { id: "pArtColor",         label: "ARTemaARTema" },
+];
+
+const FONT_FIELDS = [
+  { id: "pDateFont",       label: "Даты (основной)" },
+  { id: "pDateFontOther",  label: "Даты (доп.)" },
+  { id: "pRoomFont",       label: "Комнаты (основной)" },
+  { id: "pRoomFontOther",  label: "Комнаты (доп.)" },
+  { id: "pWdFont",         label: "Дни недели" },
+  { id: "pBarLine1Font",   label: "Плашка: строка 1" },
+  { id: "pBarLine2Font",   label: "Плашка: строка 2" },
+  { id: "pArtFont",        label: "ARTemaARTema" },
+];
+
+function renderColorSummary() {
+  const wrap = document.getElementById("colorSummary");
+  if (!wrap) return;
+
+  // Группируем поля по значению цвета
+  const groups = new Map(); // hex -> [{id, label}]
+  for (const f of COLOR_FIELDS) {
+    const el = document.getElementById(f.id);
+    if (!el) continue;
+    const hex = (el.value || "").toLowerCase();
+    if (!groups.has(hex)) groups.set(hex, []);
+    groups.get(hex).push(f);
+  }
+
+  wrap.innerHTML = "";
+  for (const [hex, fields] of groups.entries()) {
+    const row = document.createElement("div");
+    row.className = "summaryRow";
+
+    const colorInput = document.createElement("input");
+    colorInput.type = "color";
+    colorInput.value = hex;
+    colorInput.dataset.groupHex = hex;
+
+    const usage = document.createElement("div");
+    usage.className = "usage";
+    usage.innerHTML = fields.map(f => `<b>${f.label}</b>`).join(", ");
+
+    const cnt = document.createElement("span");
+    cnt.className = "cnt";
+    cnt.textContent = "×" + fields.length;
+
+    colorInput.addEventListener("input", () => {
+      const newHex = colorInput.value;
+      for (const f of fields) {
+        const el = document.getElementById(f.id);
+        if (el) el.value = newHex;
+      }
+      // Обновляем акцент, если плашка поменялась
+      if (fields.some(f => f.id === "pBarBg")) applyAccentFromBar();
+      renderColorSummary();
+      if (autoUpdate) render();
+    });
+
+    row.appendChild(colorInput);
+    row.appendChild(usage);
+    row.appendChild(cnt);
+    wrap.appendChild(row);
+  }
+}
+
+function renderFontSummary() {
+  const wrap = document.getElementById("fontSummary");
+  if (!wrap) return;
+
+  const groups = new Map(); // key -> [{id, label}]
+  for (const f of FONT_FIELDS) {
+    const el = document.getElementById(f.id);
+    if (!el) continue;
+    const key = el.value || "";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(f);
+  }
+
+  wrap.innerHTML = "";
+  for (const [key, fields] of groups.entries()) {
+    const row = document.createElement("div");
+    row.className = "summaryRow";
+
+    const sel = document.createElement("select");
+    Object.entries(FONTS).forEach(([k, f]) => {
+      const opt = document.createElement("option");
+      opt.value = k;
+      opt.textContent = f.label;
+      if (k === key) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    // Если ключ не найден — добавим как есть
+    if (!FONTS[key] && key) {
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = key + " (нет в манифесте)";
+      opt.selected = true;
+      sel.appendChild(opt);
+    }
+
+    const usage = document.createElement("div");
+    usage.className = "usage";
+    usage.innerHTML = fields.map(f => `<b>${f.label}</b>`).join(", ");
+
+    const cnt = document.createElement("span");
+    cnt.className = "cnt";
+    cnt.textContent = "×" + fields.length;
+
+    sel.addEventListener("change", () => {
+      const newKey = sel.value;
+      for (const f of fields) {
+        const el = document.getElementById(f.id);
+        if (el) el.value = newKey;
+      }
+      renderFontSummary();
+      if (autoUpdate) render();
+    });
+
+    row.appendChild(sel);
+    row.appendChild(usage);
+    row.appendChild(cnt);
+    wrap.appendChild(row);
+  }
+}
 
 // ============================================================
 //  Расписание
@@ -931,56 +1308,33 @@ function svgBlendMode(name) {
   return ["multiply","screen","overlay","darken","lighten"].includes(name) ? name : "normal";
 }
 
-async function render() {
-  clearLog();
-  updateAlwaysSixLock();
-  const P = readParams();
-  const { monthFrom, monthTo, rooms: roomsStr, lastRoom, lastDate, order, previewMonth } = P.test;
-
-  let previewY, previewM;
-  if (previewMonth) {
-    const [y, m] = previewMonth.split("-").map(Number);
-    previewY = y; previewM = m - 1;
-  } else {
-    const [y, m] = monthFrom.split("-").map(Number);
-    previewY = y; previewM = m - 1;
-  }
-  const year = previewY, month = previewM;
-
-  const rooms = parseRooms(roomsStr);
-  if (!rooms.length) { log("Нет комнат", "err"); return; }
-
-  const firstDay = new Date(year, month, 1);
-  const startCol = (firstDay.getDay() + 6) % 7;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  let ROWS = P.grid.alwaysSix ? 6 : parseInt(document.getElementById("pRows").value, 10);
-  const rowGap = ROWS === 5 ? P.grid.rowGap5 : P.grid.rowGap6;
-
-  const schedStart = new Date(year, month - 2, 1);
-  const schedEnd   = new Date(year, month + 3, 0);
-  const schedule = buildFullSchedule(rooms, lastRoom, new Date(lastDate + "T00:00:00"), schedStart, schedEnd, order);
-
+function buildSvgForMonth(P, year, month, scale, processedImages) {
   const PAGE_W = P.page.w, PAGE_H = P.page.h;
   const COLS = 7;
   const CELL_H = P.date.h + P.room.h;
   const totalGapW = P.grid.colGap * (COLS - 1);
   const CELL_W = (PAGE_W - P.grid.sideMargin * 2 - totalGapW) / COLS;
   const GRID_TOP = PAGE_H - P.grid.topMargin;
+
+  const firstDay = new Date(year, month, 1);
+  const startCol = (firstDay.getDay() + 6) % 7;
   const gridStart = new Date(year, month, 1 - startCol);
 
-  const scale = P.page.scale;
+  let ROWS = P.grid.alwaysSix ? 6 : parseInt(document.getElementById("pRows").value, 10);
+  const rowGap = ROWS === 5 ? P.grid.rowGap5 : P.grid.rowGap6;
+
+  const rooms = parseRooms(P.test.rooms);
+  const schedule = buildFullSchedule(
+    rooms, P.test.lastRoom,
+    new Date(P.test.lastDate + "T00:00:00"),
+    new Date(year, month - 2, 1),
+    new Date(year, month + 3, 0),
+    P.test.order
+  );
+
   const svgW = PAGE_W * scale, svgH = PAGE_H * scale;
   const X = x => x * scale;
   const Y = y => (PAGE_H - y) * scale;
-
-  const processedImages = [];
-  for (const im of images) {
-    if (!im.dataUrl) continue;
-    const dataUrl = await processImage(im.dataUrl, im.bright, im.contrast, im.sat);
-    const dim = await getImageDimensions(im.dataUrl);
-    processedImages.push({ ...im, _dataUrl: dataUrl, _dim: dim });
-  }
 
   const parts = [];
   parts.push(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">`);
@@ -1065,10 +1419,53 @@ async function render() {
   parts.push(`<text x="${X(artX + P.art.padX)}" y="${Y(artY + P.art.h/2)}" font-family="${fontFamilyCss(P.art.font)}" font-size="${P.art.size*scale}" font-weight="600" fill="${rgbCss(P.art.color)}" opacity="${P.art.opacity}" dominant-baseline="middle">${P.art.text}</text>`);
 
   parts.push(`</svg>`);
-  document.getElementById("preview").innerHTML = parts.join("");
-  setupDragAndDrop();
-  setupWheelZoom();
-  log(`Превью: ${MONTHS_RU[month]} ${year}, строк: ${ROWS}`);
+  return parts.join("");
+}
+
+async function render() {
+  clearLog();
+  updateAlwaysSixLock();
+  previewLoader(true);
+  progressStart();
+  try {
+    const P = readParams();
+    const { monthFrom, rooms: roomsStr, lastRoom, lastDate, order, previewMonth } = P.test;
+
+    let previewY, previewM;
+    if (previewMonth) {
+      const [y, m] = previewMonth.split("-").map(Number);
+      previewY = y; previewM = m - 1;
+    } else {
+      const [y, m] = monthFrom.split("-").map(Number);
+      previewY = y; previewM = m - 1;
+    }
+    const year = previewY, month = previewM;
+
+    const rooms = parseRooms(roomsStr);
+    if (!rooms.length) { log("Нет комнат", "err"); return; }
+
+    const processedImages = [];
+    for (const im of images) {
+      if (!im.dataUrl) continue;
+      const dataUrl = await processImage(im.dataUrl, im.bright, im.contrast, im.sat);
+      const dim = await getImageDimensions(im.dataUrl);
+      processedImages.push({ ...im, _dataUrl: dataUrl, _dim: dim });
+    }
+    progressSet(60);
+
+    const svgStr = buildSvgForMonth(P, year, month, P.page.scale, processedImages);
+    document.getElementById("preview").innerHTML = svgStr;
+    setupDragAndDrop();
+    setupWheelZoom();
+    log(`Превью: ${MONTHS_RU[month]} ${year}`);
+    progressDone();
+  } catch (e) {
+    console.error(e);
+    log("Ошибка рендера: " + e.message, "err");
+    progressDone();
+  } finally {
+    previewLoader(false);
+  }
 }
 
 // ============================================================
@@ -1121,197 +1518,222 @@ function setupWheelZoom() {
 // ============================================================
 async function exportPdf() {
   clearLog();
-  const P = readParams();
-  const rooms = parseRooms(P.test.rooms);
-  if (!rooms.length) { log("Нет комнат", "err"); return; }
+  progressStart();
+  overlayShow("Готовим PDF…", "Загрузка шрифтов");
+  try {
+    const P = readParams();
+    const rooms = parseRooms(P.test.rooms);
+    if (!rooms.length) { log("Нет комнат", "err"); return; }
 
-  const { monthFrom, monthTo, lastRoom, lastDate, order } = P.test;
-  const [fromY, fromM] = monthFrom.split("-").map(Number);
-  const [toY, toM]     = monthTo.split("-").map(Number);
-  if (fromY !== toY) { log("Месяцы должны быть в одном году", "err"); return; }
+    const { monthFrom, monthTo, lastRoom, lastDate, order } = P.test;
+    const [fromY, fromM] = monthFrom.split("-").map(Number);
+    const [toY, toM]     = monthTo.split("-").map(Number);
+    const fromIdx = fromY * 12 + (fromM - 1);
+    const toIdx   = toY   * 12 + (toM   - 1);
+    if (fromIdx > toIdx) { log("Месяц «с» больше, чем месяц «по»", "err"); return; }
 
-  const { PDFDocument, rgb } = PDFLib;
-  const doc = await PDFDocument.create();
-  doc.registerFontkit(fontkit);
+    const { PDFDocument, rgb } = PDFLib;
+    const doc = await PDFDocument.create();
+    doc.registerFontkit(fontkit);
 
-  const fontCache = {};
-  async function getFont(name) {
-    if (fontCache[name]) return fontCache[name];
-    let font;
-    if (name === "helvetica") font = await doc.embedFont("Helvetica");
-    else if (name === "times") font = await doc.embedFont("Times-Roman");
-    else if (name === "courier") font = await doc.embedFont("Courier");
-    else font = await doc.embedFont(await getFontBytes(name), { subset: true });
-    fontCache[name] = font;
-    return font;
-  }
-
-  const fontDate       = await getFont(P.date.font);
-  const fontDateOther  = await getFont(P.date.fontOther || P.date.font);
-  const fontRoom       = await getFont(P.room.font);
-  const fontRoomOther  = await getFont(P.room.fontOther || P.room.font);
-  const fontWd         = await getFont(P.weekday.font);
-  const fontBarLine1   = await getFont(P.bar.line1Font);
-  const fontBarLine2   = await getFont(P.bar.line2Font);
-  const fontArt        = await getFont(P.art.font);
-
-  const PAGE_W = P.page.w, PAGE_H = P.page.h;
-  const COLS = 7;
-  const totalGapW = P.grid.colGap * (COLS - 1);
-  const CELL_W = (PAGE_W - P.grid.sideMargin * 2 - totalGapW) / COLS;
-  const GRID_TOP = PAGE_H - P.grid.topMargin;
-
-  const schedStart = new Date(fromY, fromM - 3, 1);
-  const schedEnd   = new Date(toY, toM + 2, 0);
-  const schedule = buildFullSchedule(rooms, lastRoom, new Date(lastDate + "T00:00:00"), schedStart, schedEnd, order);
-
-  const pdfImages = [];
-  for (const im of images) {
-    if (!im.dataUrl) continue;
-    const dataUrl = await processImage(im.dataUrl, im.bright, im.contrast, im.sat);
-    const pngBytes = dataUrlToUint8Array(dataUrl);
-    const img = await doc.embedPng(pngBytes);
-    const dim = await getImageDimensions(im.dataUrl);
-    pdfImages.push({ cfg: im, img, dim });
-  }
-
-  for (let m = fromM - 1; m <= toM - 1; m++) {
-    const year = fromY, month = m;
-    const firstDay = new Date(year, month, 1);
-    const startCol = (firstDay.getDay() + 6) % 7;
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    let ROWS = P.grid.alwaysSix ? 6 : Math.ceil((startCol + daysInMonth) / 7);
-    const rowGap = ROWS === 5 ? P.grid.rowGap5 : P.grid.rowGap6;
-    const CELL_H = P.date.h + P.room.h;
-    const gridStart = new Date(year, month, 1 - startCol);
-
-    const page = doc.addPage([PAGE_W, PAGE_H]);
-    page.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: P.bar.h, color: rgb(P.bar.bg.r, P.bar.bg.g, P.bar.bg.b) });
-
-    const { pushGraphicsState, popGraphicsState, moveTo, lineTo, closePath, clip, endPath } = PDFLib;
-    const doClip = P.bar.clip;
-    for (const { cfg, img, dim } of pdfImages) {
-      if (doClip && cfg.clip) {
-        page.pushOperators(
-          pushGraphicsState(),
-          moveTo(0, 0), lineTo(PAGE_W, 0),
-          lineTo(PAGE_W, P.bar.h), lineTo(0, P.bar.h),
-          closePath(), clip(), endPath()
-        );
-      }
-      const w = cfg.baseW * cfg.scale;
-      const h = w * (dim.h / dim.w);
-      page.drawImage(img, { x: cfg.x - w/2, y: cfg.y - h/2, width: w, height: h, opacity: cfg.opacity });
-      if (doClip && cfg.clip) page.pushOperators(popGraphicsState());
+    const fontCache = {};
+    async function getFont(name) {
+      if (fontCache[name]) return fontCache[name];
+      let font;
+      if (name === "helvetica") font = await doc.embedFont("Helvetica");
+      else if (name === "times") font = await doc.embedFont("Times-Roman");
+      else if (name === "courier") font = await doc.embedFont("Courier");
+      else font = await doc.embedFont(await getFontBytes(name), { subset: true });
+      fontCache[name] = font;
+      return font;
     }
 
-    const lineGapPx = P.bar.line1Size * P.bar.lineGap;
-    const midY = P.bar.h / 2 + P.bar.dy;
-    const y1 = midY + lineGapPx / 2;
-    const y2 = midY - lineGapPx / 2;
-    page.drawText(P.bar.line1, {
-      x: P.bar.dx, y: y1 - P.bar.line1Size * 0.35,
-      size: P.bar.line1Size, font: fontBarLine1,
-      color: rgb(P.bar.line1Color.r, P.bar.line1Color.g, P.bar.line1Color.b),
-    });
-    const line2Text = P.bar.line2.replace(/МЕСЯЦ/g, MONTHS_RU[month]).replace(/ГОД/g, String(year));
-    page.drawText(line2Text, {
-      x: P.bar.dx, y: y2 - P.bar.line2Size * 0.35,
-      size: P.bar.line2Size, font: fontBarLine2,
-      color: rgb(P.bar.line2Color.r, P.bar.line2Color.g, P.bar.line2Color.b),
-    });
+    const fontDate       = await getFont(P.date.font);
+    const fontDateOther  = await getFont(P.date.fontOther || P.date.font);
+    const fontRoom       = await getFont(P.room.font);
+    const fontRoomOther  = await getFont(P.room.fontOther || P.room.font);
+    const fontWd         = await getFont(P.weekday.font);
+    const fontBarLine1   = await getFont(P.bar.line1Font);
+    const fontBarLine2   = await getFont(P.bar.line2Font);
+    const fontArt        = await getFont(P.art.font);
 
-    for (let i = 0; i < ROWS * COLS; i++) {
-      const cellDate = new Date(gridStart); cellDate.setDate(gridStart.getDate() + i);
-      const r = Math.floor(i / COLS), c = i % COLS;
-      const isCurrent = cellDate.getMonth() === month;
-      const x0 = P.grid.sideMargin + c * (CELL_W + P.grid.colGap);
-      const yTopDate = GRID_TOP - r * (CELL_H + rowGap);
-      const yTopRoom = yTopDate - P.date.h;
+    progressSet(20);
 
-      const dateStr = String(cellDate.getDate());
-      const dateSize = P.date.size;
-      const dateColor = isCurrent ? P.date.color : P.date.colorOther;
-      const dateFont = isCurrent ? fontDate : fontDateOther;
-      const dateW = dateFont.widthOfTextAtSize(dateStr, dateSize);
-      page.drawText(dateStr, {
-        x: x0 + CELL_W/2 - dateW/2 + P.date.dx,
-        y: yTopDate - P.date.h/2 + P.date.dy - dateSize * 0.35,
-        size: dateSize, font: dateFont,
-        color: rgb(dateColor.r, dateColor.g, dateColor.b),
+    const PAGE_W = P.page.w, PAGE_H = P.page.h;
+    const COLS = 7;
+    const totalGapW = P.grid.colGap * (COLS - 1);
+    const CELL_W = (PAGE_W - P.grid.sideMargin * 2 - totalGapW) / COLS;
+    const GRID_TOP = PAGE_H - P.grid.topMargin;
+
+    const schedStart = new Date(fromY, fromM - 3, 1);
+    const schedEnd   = new Date(toY, toM + 2, 0);
+    const schedule = buildFullSchedule(rooms, lastRoom, new Date(lastDate + "T00:00:00"), schedStart, schedEnd, order);
+
+    const pdfImages = [];
+    for (const im of images) {
+      if (!im.dataUrl) continue;
+      const dataUrl = await processImage(im.dataUrl, im.bright, im.contrast, im.sat);
+      const pngBytes = dataUrlToUint8Array(dataUrl);
+      const img = await doc.embedPng(pngBytes);
+      const dim = await getImageDimensions(im.dataUrl);
+      pdfImages.push({ cfg: im, img, dim });
+    }
+
+    const totalPages = toIdx - fromIdx + 1;
+    let pageDone = 0;
+
+    for (let idx = fromIdx; idx <= toIdx; idx++) {
+      const year  = Math.floor(idx / 12);
+      const month = idx % 12;
+
+      const firstDay = new Date(year, month, 1);
+      const startCol = (firstDay.getDay() + 6) % 7;
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      let ROWS = P.grid.alwaysSix ? 6 : Math.ceil((startCol + daysInMonth) / 7);
+      const rowGap = ROWS === 5 ? P.grid.rowGap5 : P.grid.rowGap6;
+      const CELL_H = P.date.h + P.room.h;
+      const gridStart = new Date(year, month, 1 - startCol);
+
+      const page = doc.addPage([PAGE_W, PAGE_H]);
+      page.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: P.bar.h, color: rgb(P.bar.bg.r, P.bar.bg.g, P.bar.bg.b) });
+
+      const { pushGraphicsState, popGraphicsState, moveTo, lineTo, closePath, clip, endPath } = PDFLib;
+      const doClip = P.bar.clip;
+      for (const { cfg, img, dim } of pdfImages) {
+        if (doClip && cfg.clip) {
+          page.pushOperators(
+            pushGraphicsState(),
+            moveTo(0, 0), lineTo(PAGE_W, 0),
+            lineTo(PAGE_W, P.bar.h), lineTo(0, P.bar.h),
+            closePath(), clip(), endPath()
+          );
+        }
+        const w = cfg.baseW * cfg.scale;
+        const h = w * (dim.h / dim.w);
+        page.drawImage(img, { x: cfg.x - w/2, y: cfg.y - h/2, width: w, height: h, opacity: cfg.opacity });
+        if (doClip && cfg.clip) page.pushOperators(popGraphicsState());
+      }
+
+      const lineGapPx = P.bar.line1Size * P.bar.lineGap;
+      const midY = P.bar.h / 2 + P.bar.dy;
+      const y1 = midY + lineGapPx / 2;
+      const y2 = midY - lineGapPx / 2;
+      page.drawText(P.bar.line1, {
+        x: P.bar.dx, y: y1 - P.bar.line1Size * 0.35,
+        size: P.bar.line1Size, font: fontBarLine1,
+        color: rgb(P.bar.line1Color.r, P.bar.line1Color.g, P.bar.line1Color.b),
+      });
+      const line2Text = P.bar.line2.replace(/МЕСЯЦ/g, MONTHS_RU[month]).replace(/ГОД/g, String(year));
+      page.drawText(line2Text, {
+        x: P.bar.dx, y: y2 - P.bar.line2Size * 0.35,
+        size: P.bar.line2Size, font: fontBarLine2,
+        color: rgb(P.bar.line2Color.r, P.bar.line2Color.g, P.bar.line2Color.b),
       });
 
-      const key = cellDate.getFullYear() + "-" +
-                  String(cellDate.getMonth()+1).padStart(2,"0") + "-" +
-                  String(cellDate.getDate()).padStart(2,"0");
-      const room = schedule.get(key);
-      if (room !== undefined) {
-        const roomStr = formatRoom(room, P.room, rooms);
-        const roomSize = P.room.size;
-        const roomColor = isCurrent ? P.room.color : P.room.colorOther;
-        const roomFont = isCurrent ? fontRoom : fontRoomOther;
-        const roomW = roomFont.widthOfTextAtSize(roomStr, roomSize);
-        page.drawText(roomStr, {
-          x: x0 + CELL_W/2 - roomW/2 + P.room.dx,
-          y: yTopRoom + P.room.h/2 + P.room.dy - roomSize * 0.35,
-          size: roomSize, font: roomFont,
-          color: rgb(roomColor.r, roomColor.g, roomColor.b),
+      for (let i = 0; i < ROWS * COLS; i++) {
+        const cellDate = new Date(gridStart); cellDate.setDate(gridStart.getDate() + i);
+        const r = Math.floor(i / COLS), c = i % COLS;
+        const isCurrent = cellDate.getMonth() === month;
+        const x0 = P.grid.sideMargin + c * (CELL_W + P.grid.colGap);
+        const yTopDate = GRID_TOP - r * (CELL_H + rowGap);
+        const yTopRoom = yTopDate - P.date.h;
+
+        const dateStr = String(cellDate.getDate());
+        const dateSize = P.date.size;
+        const dateColor = isCurrent ? P.date.color : P.date.colorOther;
+        const dateFont = isCurrent ? fontDate : fontDateOther;
+        const dateW = dateFont.widthOfTextAtSize(dateStr, dateSize);
+        page.drawText(dateStr, {
+          x: x0 + CELL_W/2 - dateW/2 + P.date.dx,
+          y: yTopDate - P.date.h/2 + P.date.dy - dateSize * 0.35,
+          size: dateSize, font: dateFont,
+          color: rgb(dateColor.r, dateColor.g, dateColor.b),
+        });
+
+        const key = cellDate.getFullYear() + "-" +
+                    String(cellDate.getMonth()+1).padStart(2,"0") + "-" +
+                    String(cellDate.getDate()).padStart(2,"0");
+        const room = schedule.get(key);
+        if (room !== undefined) {
+          const roomStr = formatRoom(room, P.room, rooms);
+          const roomSize = P.room.size;
+          const roomColor = isCurrent ? P.room.color : P.room.colorOther;
+          const roomFont = isCurrent ? fontRoom : fontRoomOther;
+          const roomW = roomFont.widthOfTextAtSize(roomStr, roomSize);
+          page.drawText(roomStr, {
+            x: x0 + CELL_W/2 - roomW/2 + P.room.dx,
+            y: yTopRoom + P.room.h/2 + P.room.dy - roomSize * 0.35,
+            size: roomSize, font: roomFont,
+            color: rgb(roomColor.r, roomColor.g, roomColor.b),
+          });
+        }
+      }
+
+      for (let c = 0; c < COLS; c++) {
+        const x0 = P.grid.sideMargin + c * (CELL_W + P.grid.colGap);
+        const label = getWeekdayLabel(c, P.weekday.form, P.weekday.case);
+        page.drawText(label, {
+          x: x0 + P.weekday.padLeft, y: P.weekday.y,
+          size: P.weekday.size, font: fontWd,
+          color: rgb(P.weekday.color.r, P.weekday.color.g, P.weekday.color.b),
         });
       }
-    }
 
-    for (let c = 0; c < COLS; c++) {
-      const x0 = P.grid.sideMargin + c * (CELL_W + P.grid.colGap);
-      const label = getWeekdayLabel(c, P.weekday.form, P.weekday.case);
-      page.drawText(label, {
-        x: x0 + P.weekday.padLeft, y: P.weekday.y,
-        size: P.weekday.size, font: fontWd,
-        color: rgb(P.weekday.color.r, P.weekday.color.g, P.weekday.color.b),
-      });
-    }
-
-    for (let c = 1; c < COLS; c++) {
-      const xLine = P.grid.sideMargin + c * (CELL_W + P.grid.colGap) - P.grid.colGap / 2;
-      page.drawLine({
-        start: { x: xLine, y: PAGE_H - P.line.bottom },
-        end:   { x: xLine, y: PAGE_H - P.line.top },
-        thickness: P.line.w,
-        color: rgb(P.line.color.r, P.line.color.g, P.line.color.b),
-      });
-    }
-
-    if (P.line.horiz) {
-      for (let r = 1; r < ROWS; r++) {
-        const yMid = GRID_TOP - r * CELL_H - (r - 1) * rowGap - rowGap / 2;
+      for (let c = 1; c < COLS; c++) {
+        const xLine = P.grid.sideMargin + c * (CELL_W + P.grid.colGap) - P.grid.colGap / 2;
         page.drawLine({
-          start: { x: P.grid.sideMargin + P.line.horizPad, y: yMid },
-          end:   { x: PAGE_W - P.grid.sideMargin - P.line.horizPad, y: yMid },
-          thickness: P.line.horizW,
+          start: { x: xLine, y: PAGE_H - P.line.bottom },
+          end:   { x: xLine, y: PAGE_H - P.line.top },
+          thickness: P.line.w,
           color: rgb(P.line.color.r, P.line.color.g, P.line.color.b),
         });
       }
+
+      if (P.line.horiz) {
+        for (let r = 1; r < ROWS; r++) {
+          const yMid = GRID_TOP - r * CELL_H - (r - 1) * rowGap - rowGap / 2;
+          page.drawLine({
+            start: { x: P.grid.sideMargin + P.line.horizPad, y: yMid },
+            end:   { x: PAGE_W - P.grid.sideMargin - P.line.horizPad, y: yMid },
+            thickness: P.line.horizW,
+            color: rgb(P.line.color.r, P.line.color.g, P.line.color.b),
+          });
+        }
+      }
+
+      const artTextW = fontArt.widthOfTextAtSize(P.art.text, P.art.size);
+      const artW = artTextW + P.art.padX * 2;
+      const artX = PAGE_W - artW - P.art.right;
+      const artY = PAGE_H - P.art.h - P.art.top;
+      page.drawText(P.art.text, {
+        x: artX + P.art.padX, y: artY + P.art.h/2 - P.art.size * 0.35,
+        size: P.art.size, font: fontArt,
+        color: rgb(P.art.color.r, P.art.color.g, P.art.color.b),
+        opacity: P.art.opacity,
+      });
+
+      pageDone++;
+      progressSet(20 + (pageDone / totalPages) * 75);
+      overlayShow("Готовим PDF…", `${MONTHS_RU[month]} ${year} (${pageDone} из ${totalPages})`);
+      log(`Страница ${MONTHS_RU[month]} ${year}`);
     }
 
-    const artTextW = fontArt.widthOfTextAtSize(P.art.text, P.art.size);
-    const artW = artTextW + P.art.padX * 2;
-    const artX = PAGE_W - artW - P.art.right;
-    const artY = PAGE_H - P.art.h - P.art.top;
-    page.drawText(P.art.text, {
-      x: artX + P.art.padX, y: artY + P.art.h/2 - P.art.size * 0.35,
-      size: P.art.size, font: fontArt,
-      color: rgb(P.art.color.r, P.art.color.g, P.art.color.b),
-      opacity: P.art.opacity,
-    });
-    log(`Страница ${MONTHS_RU[month]} ${year}`);
+    const bytes = await doc.save();
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `ГрафикДежурств.pdf`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    log("PDF сохранён", "ok");
+    overlayShow("Готово", "PDF сохранён");
+    setTimeout(overlayHide, 600);
+  } catch (e) {
+    console.error(e);
+    overlayHide();
+    log("Ошибка PDF: " + e.message, "err");
+  } finally {
+    progressDone();
   }
-
-  const bytes = await doc.save();
-  const blob = new Blob([bytes], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = `ГрафикДежурств.pdf`; a.click();
-  URL.revokeObjectURL(url);
-  log("PDF сохранён", "ok");
 }
 
 // ============================================================
@@ -1319,29 +1741,101 @@ async function exportPdf() {
 // ============================================================
 async function exportPng(scaleFactor) {
   clearLog();
-  const svg = document.querySelector("#preview svg"); if (!svg) { log("Нет превью","err"); return; }
-  const clone = svg.cloneNode(true);
-  const P = readParams();
-  clone.setAttribute("width", P.page.w * scaleFactor);
-  clone.setAttribute("height", P.page.h * scaleFactor);
-  const svgStr = new XMLSerializer().serializeToString(clone);
-  const url = URL.createObjectURL(new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" }));
-  const img = new Image();
-  img.onload = () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = P.page.w * scaleFactor; canvas.height = P.page.h * scaleFactor;
-    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-    URL.revokeObjectURL(url);
-    canvas.toBlob(blob => {
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `ГрафикДежурств_${scaleFactor}x.png`;
-      a.click();
-      log(`PNG (${scaleFactor}x) сохранён`);
-    }, "image/png");
-  };
-  img.onerror = () => { log("Ошибка рендера PNG", "err"); URL.revokeObjectURL(url); };
-  img.src = url;
+  progressStart();
+  overlayShow("Готовим PNG…", "Подготовка данных");
+  try {
+    const P = readParams();
+    const rooms = parseRooms(P.test.rooms);
+    if (!rooms.length) { log("Нет комнат", "err"); return; }
+
+    const [fromY, fromM] = P.test.monthFrom.split("-").map(Number);
+    const [toY, toM]     = P.test.monthTo.split("-").map(Number);
+    const fromIdx = fromY * 12 + (fromM - 1);
+    const toIdx   = toY   * 12 + (toM   - 1);
+    if (fromIdx > toIdx) { log("Месяц «с» больше, чем месяц «по»", "err"); return; }
+
+    const processedImages = [];
+    for (const im of images) {
+      if (!im.dataUrl) continue;
+      const dataUrl = await processImage(im.dataUrl, im.bright, im.contrast, im.sat);
+      const dim = await getImageDimensions(im.dataUrl);
+      processedImages.push({ ...im, _dataUrl: dataUrl, _dim: dim });
+    }
+    progressSet(20);
+
+    const total = toIdx - fromIdx + 1;
+    let done = 0;
+
+    const pxPerMm = 96 / 25.4;
+    const pxW = Math.round(P.page.w / MM * pxPerMm * scaleFactor);
+    const pxH = Math.round(P.page.h / MM * pxPerMm * scaleFactor);
+
+    for (let idx = fromIdx; idx <= toIdx; idx++) {
+      const year  = Math.floor(idx / 12);
+      const month = idx % 12;
+      const mm = String(month + 1).padStart(2, "0");
+      const fileName = `ГрафикДежурств_${year}-${mm}_${scaleFactor}x.png`;
+
+      overlayShow("Готовим PNG…", `${MONTHS_RU[month]} ${year} (${done + 1} из ${total})`);
+
+      const svgStr = buildSvgForMonth(P, year, month, 1, processedImages);
+      const blob = await svgStringToPngBlob(svgStr, pxW, pxH);
+      await downloadBlob(blob, fileName);
+
+      done++;
+      progressSet(20 + (done / total) * 75);
+      log(`PNG сохранён: ${fileName}`);
+    }
+
+    overlayShow("Готово", `Сохранено ${total} PNG`);
+    setTimeout(overlayHide, 700);
+  } catch (e) {
+    console.error(e);
+    overlayHide();
+    log("Ошибка PNG: " + e.message, "err");
+  } finally {
+    progressDone();
+  }
+}
+
+function svgStringToPngBlob(svgStr, pxW, pxH) {
+  return new Promise((resolve, reject) => {
+    const dataUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgStr);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = pxW;
+        canvas.height = pxH;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, pxW, pxH);
+        ctx.drawImage(img, 0, 0, pxW, pxH);
+        canvas.toBlob(b => {
+          if (b) resolve(b);
+          else reject(new Error("canvas.toBlob вернул null"));
+        }, "image/png");
+      } catch (e) { reject(e); }
+    };
+    img.onerror = () => reject(new Error("Не удалось загрузить SVG в Image"));
+    img.src = dataUrl;
+  });
+}
+
+function downloadBlob(blob, filename) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      a.remove();
+      resolve();
+    }, 300);
+  });
 }
 
 // ============================================================
@@ -1533,7 +2027,13 @@ document.getElementById("btnTplApply").addEventListener("click", async () => {
         dataUrl: im.dataUrl || null,
         file: im.file || null,
         x: im.x, y: im.y, scale: im.scale ?? 1, baseW: im.baseW ?? 40,
-        opacity: im.opacity ?? 1, blend: im.blend || "normal",
+        opacity: (() => {
+          let o = Number(im.opacity);
+          if (!isFinite(o)) return 1;
+          if (o > 1) o = o / 100;
+          return clamp(o, 0, 1);
+        })(),
+        blend: im.blend || "normal",
         bright: im.bright ?? 0, contrast: im.contrast ?? 100, sat: im.sat ?? 100,
         clip: im.clip !== false,
       }));
@@ -1559,10 +2059,23 @@ document.getElementById("pPageFormat").addEventListener("change", e => {
 
 document.getElementById("panel").addEventListener("input", (e) => {
   if (e.target && e.target.id === "tplSelect") return;
+  if (e.target && e.target.id === "pBarBg") applyAccentFromBar();
+  if (e.target && e.target.id === "pArtOpacity") {
+    const v = clamp(e.target.value, 0, 100);
+    e.target.value = v;
+    const lbl = document.getElementById("pArtOpacityVal");
+    if (lbl) lbl.textContent = Math.round(v) + "%";
+  }
+  // Пересобираем сводки, если изменилось поле цвета/шрифта
+  if (e.target && COLOR_FIELDS.some(f => f.id === e.target.id)) renderColorSummary();
+  if (e.target && FONT_FIELDS.some(f => f.id === e.target.id)) renderFontSummary();
   if (autoUpdate) render();
 });
 document.getElementById("panel").addEventListener("change", (e) => {
   if (e.target && e.target.id === "tplSelect") return;
+  if (e.target && e.target.id === "pBarBg") applyAccentFromBar();
+  if (e.target && COLOR_FIELDS.some(f => f.id === e.target.id)) renderColorSummary();
+  if (e.target && FONT_FIELDS.some(f => f.id === e.target.id)) renderFontSummary();
   if (autoUpdate) render();
 });
 
@@ -1570,6 +2083,9 @@ document.getElementById("panel").addEventListener("change", (e) => {
 //  Старт
 // ============================================================
 (async () => {
+  progressStart();
+  applyAccentFromBar();
+
   try {
     await loadFontsManifest();
   } catch (e) {
@@ -1591,12 +2107,17 @@ document.getElementById("panel").addEventListener("change", (e) => {
     log("Ошибка загрузки шаблонов: " + e.message, "err");
   }
 
+  renderColorSummary();
+  renderFontSummary();
+
   const firstTplId = Object.keys(savedTemplates)[0];
   if (firstTplId) {
     await applyTemplateById(firstTplId);
   } else {
     render();
   }
+
+  progressDone();
 })();
 </script>
 
