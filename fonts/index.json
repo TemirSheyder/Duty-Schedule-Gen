@@ -1,0 +1,12 @@
+{
+  "fonts": [
+    { "key": "gilroy",      "label": "Gilroy",        "file": "Gilroy-Regular.ttf",    "weight": 500 },
+    { "key": "gilroyLight", "label": "Gilroy Light",  "file": "Gilroy-Light.ttf",      "weight": 300 },
+    { "key": "montserrat",  "label": "Montserrat",    "file": "Montserrat-SemiBold.ttf","weight": 600 }
+  ],
+  "builtin": [
+    { "key": "helvetica", "label": "Helvetica" },
+    { "key": "times",     "label": "Times" },
+    { "key": "courier",   "label": "Courier" }
+  ]
+}
