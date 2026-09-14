@@ -1,0 +1,38 @@
+{
+  "builtin": [
+    { "key": "helvetica", "label": "Helvetica",       "family": "Helvetica",       "style": "Regular" },
+    { "key": "times",     "label": "Times New Roman", "family": "Times New Roman", "style": "Regular" },
+    { "key": "courier",   "label": "Courier New",     "family": "Courier New",     "style": "Regular" }
+  ],
+  "fonts": [
+    { "key": "gilroy",              "label": "Gilroy",              "file": "Gilroy-Regular.ttf",         "family": "Gilroy",     "style": "Regular",   "weight": 400 },
+    { "key": "gilroy-light",        "label": "Gilroy Light",        "file": "Gilroy-Light.ttf",           "family": "Gilroy",     "style": "Light",     "weight": 300 },
+    { "key": "gilroy-thin",         "label": "Gilroy Thin",         "file": "Gilroy-Thin.ttf",            "family": "Gilroy",     "style": "Thin",      "weight": 100 },
+    { "key": "gilroy-medium",       "label": "Gilroy Medium",       "file": "Gilroy-Medium.ttf",          "family": "Gilroy",     "style": "Medium",    "weight": 500 },
+    { "key": "gilroy-semibold",     "label": "Gilroy SemiBold",     "file": "Gilroy-Semibold.ttf",        "family": "Gilroy",     "style": "SemiBold",  "weight": 600 },
+    { "key": "gilroy-bold",         "label": "Gilroy Bold",         "file": "Gilroy-Bold.ttf",            "family": "Gilroy",     "style": "Bold",      "weight": 700 },
+    { "key": "gilroy-extrabold",    "label": "Gilroy ExtraBold",    "file": "Gilroy-ExtraBold.ttf",       "family": "Gilroy",     "style": "ExtraBold", "weight": 800 },
+    { "key": "gilroy-black",        "label": "Gilroy Black",        "file": "Gilroy-Black.ttf",           "family": "Gilroy",     "style": "Black",     "weight": 900 },
+    { "key": "gilroy-heavy",        "label": "Gilroy Heavy",        "file": "Gilroy-Heavy.ttf",           "family": "Gilroy",     "style": "Heavy",     "weight": 950 },
+    { "key": "gilroy-italic",       "label": "Gilroy Italic",       "file": "Gilroy-RegularItalic.ttf",   "family": "Gilroy",     "style": "Italic",    "weight": 400, "italic": true },
+    { "key": "gilroy-light-italic", "label": "Gilroy Light Italic", "file": "Gilroy-LightItalic.ttf",     "family": "Gilroy",     "style": "Light Italic","weight": 300, "italic": true },
+
+    { "key": "montserrat",              "label": "Montserrat",              "file": "Montserrat-Regular.ttf",     "family": "Montserrat", "style": "Regular",   "weight": 400 },
+    { "key": "montserrat-thin",         "label": "Montserrat Thin",         "file": "Montserrat-Thin.ttf",        "family": "Montserrat", "style": "Thin",      "weight": 100 },
+    { "key": "montserrat-extralight",   "label": "Montserrat ExtraLight",   "file": "Montserrat-ExtraLight.ttf",  "family": "Montserrat", "style": "ExtraLight","weight": 200 },
+    { "key": "montserrat-light",        "label": "Montserrat Light",        "file": "Montserrat-Light.ttf",       "family": "Montserrat", "style": "Light",     "weight": 300 },
+    { "key": "montserrat-medium",       "label": "Montserrat Medium",       "file": "Montserrat-Medium.ttf",      "family": "Montserrat", "style": "Medium",    "weight": 500 },
+    { "key": "montserrat-semibold",     "label": "Montserrat SemiBold",     "file": "Montserrat-SemiBold.ttf",    "family": "Montserrat", "style": "SemiBold",  "weight": 600 },
+    { "key": "montserrat-bold",         "label": "Montserrat Bold",         "file": "Montserrat-Bold.ttf",        "family": "Montserrat", "style": "Bold",      "weight": 700 },
+    { "key": "montserrat-extrabold",    "label": "Montserrat ExtraBold",    "file": "Montserrat-ExtraBold.ttf",   "family": "Montserrat", "style": "ExtraBold", "weight": 800 },
+    { "key": "montserrat-black",        "label": "Montserrat Black",        "file": "Montserrat-Black.ttf",       "family": "Montserrat", "style": "Black",     "weight": 900 },
+    { "key": "montserrat-italic",       "label": "Montserrat Italic",       "file": "Montserrat-Italic.ttf",      "family": "Montserrat", "style": "Italic",    "weight": 400, "italic": true },
+
+    { "key": "gilroyLight",    "label": "Gilroy Light",     "file": "Gilroy-Light.ttf",       "family": "Gilroy",     "style": "Light",     "weight": 300, "alias": true },
+    { "key": "gilroySemiBold", "label": "Gilroy SemiBold",  "file": "Gilroy-Semibold.ttf",    "family": "Gilroy",     "style": "SemiBold",  "weight": 600, "alias": true },
+    { "key": "gilroyThin",     "label": "Gilroy Thin",      "file": "Gilroy-Thin.ttf",        "family": "Gilroy",     "style": "Thin",      "weight": 100, "alias": true },
+    { "key": "montserratMed",  "label": "Montserrat Medium","file": "Montserrat-Medium.ttf",  "family": "Montserrat", "style": "Medium",    "weight": 500, "alias": true },
+    { "key": "montserratReg",  "label": "Montserrat",       "file": "Montserrat-Regular.ttf", "family": "Montserrat", "style": "Regular",   "weight": 400, "alias": true },
+    { "key": "montserratBold", "label": "Montserrat Bold",  "file": "Montserrat-Bold.ttf",    "family": "Montserrat", "style": "Bold",      "weight": 700, "alias": true }
+  ]
+}

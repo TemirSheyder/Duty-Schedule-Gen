@@ -1,0 +1,8 @@
+{
+  "templates": [
+    { "id": "tpl11",     "label": "Шаблон №11", "file": "tpl11.json" },
+    { "id": "tmpl6",     "label": "Шаблон №6",  "file": "tmpl6.json" },
+    { "id": "tmplRed",   "label": "Красный",    "file": "tmplRed.json" },
+    { "id": "tmplBlack", "label": "Чёрный",     "file": "tmplBlack.json" }
+  ]
+}
