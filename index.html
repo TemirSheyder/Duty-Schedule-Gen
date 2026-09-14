@@ -2,478 +2,395 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Генератор графиков дежурств</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/panel.css">
+<link rel="stylesheet" href="css/preview.css">
 <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
-<style>
-  :root {
-    --accent: #804A94;
-    --accent-soft: #faf7fc;
-    --accent-hover: #f3eafb;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; font-family: system-ui, Arial, sans-serif; font-size: 13px;
-    display: flex; height: 100vh; overflow: hidden; background: #f0f0f0;
-  }
-  #panel {
-    width: 460px; min-width: 460px; height: 100vh;
-    overflow-y: auto; background: #fff; border-right: 1px solid #ccc;
-    padding: 10px; position: relative;
-  }
-  #panel h1 { font-size: 16px; margin: 0 0 12px; color: var(--accent); transition: color .2s; }
-  details { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 8px; background: #fff; }
-  details[open] { background: #fefefe; }
-  summary {
-    cursor: pointer; padding: 8px 10px; font-weight: bold; font-size: 12px;
-    color: var(--accent); user-select: none; border-radius: 6px;
-    background: var(--accent-soft); transition: background .2s, color .2s;
-  }
-  summary:hover { background: var(--accent-hover); }
-  details[open] summary { border-bottom: 1px solid #eee; border-radius: 6px 6px 0 0; }
-  .details-body { padding: 8px 10px 10px; }
-  .field { display: flex; align-items: center; margin: 4px 0; gap: 6px; }
-  .field label { flex: 1; font-size: 12px; color: #333; }
-  .field input[type="number"] { width: 76px; padding: 3px 5px; font-size: 12px; text-align: right; }
-  .field input[type="text"] { flex: 2; padding: 3px 5px; font-size: 12px; }
-  .field input[type="color"] { width: 40px; height: 24px; padding: 0; border: 1px solid #ccc; }
-  .field input[type="range"] { flex: 2; }
-  .field select { padding: 3px 5px; font-size: 12px; flex: 2; }
-  .field textarea { flex: 2; padding: 4px 5px; font-size: 11px; font-family: monospace; min-height: 60px; }
-  .unit { font-size: 11px; color: #888; width: 24px; }
-  .btns { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-  button {
-    flex: 1; padding: 7px 10px; font-size: 12px; cursor: pointer;
-    border: none; border-radius: 4px; background: var(--accent); color: #fff;
-    transition: background .2s, opacity .2s;
-  }
-  button.secondary { background: #555; }
-  button.mini { flex: none; padding: 3px 8px; font-size: 11px; }
-  button:hover { opacity: 0.9; }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-  #log {
-    background: #fafafa; padding: 6px; border-radius: 4px; font-family: monospace;
-    font-size: 11px; max-height: 140px; overflow: auto; white-space: pre-wrap;
-    margin-top: 8px; border: 1px solid #eee;
-  }
-  #previewWrap {
-    flex: 1; height: 100vh; overflow: auto; padding: 20px;
-    display: flex; flex-direction: column; align-items: center; gap: 20px;
-    position: relative;
-  }
-  .pagePreview {
-    background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    position: relative;
-  }
-  .pagePreview svg { display: block; }
-  .hint { font-size: 11px; color: #888; margin: 4px 0; }
-  .colorGroup { background: #f9f9f9; border-radius: 4px; padding: 6px 8px; margin: 4px 0; }
-  .colorGroup > .field { margin: 2px 0; }
-  .dragHint { font-size: 11px; color: var(--accent); margin-top: 4px; font-style: italic; }
-  .row2 { display: flex; gap: 8px; }
-  .row2 > div { flex: 1; }
-  .fontList { font-size: 11px; }
-  .fontItem { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid #eee; }
-  .fontItem:last-child { border-bottom: none; }
-  .fontItem .name { flex: 1; }
-  .muted { color: var(--accent); font-style: italic; font-size: 11px; margin-top: 4px; transition: color .2s; }
-  .imgCard {
-    border: 1px solid #e0e0e0; border-radius: 4px; padding: 6px 8px;
-    margin: 6px 0; background: #fafafa;
-  }
-  .imgCard .imgHeader {
-    display: flex; align-items: center; gap: 6px; font-size: 12px;
-    font-weight: bold; color: #555; margin-bottom: 4px;
-  }
-  .imgCard .imgHeader .name { flex: 1; }
-
-  /* ============ Прогресс ============ */
-  #topProgress {
-    position: fixed;
-    top: 0; left: 0;
-    height: 3px; width: 0%;
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
-    transition: width .15s ease-out, background .2s;
-    z-index: 9999;
-    pointer-events: none;
-    opacity: 0;
-  }
-  #topProgress.active { opacity: 1; }
-
-  #overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(255,255,255,.55);
-    backdrop-filter: blur(2px);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 10000;
-  }
-  #overlay.active { display: flex; }
-  .overlayCard {
-    background: #fff;
-    border-radius: 10px;
-    padding: 22px 28px;
-    box-shadow: 0 6px 30px rgba(0,0,0,0.2);
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    font-size: 14px;
-    color: #333;
-    min-width: 260px;
-    max-width: 90vw;
-  }
-  .spinner {
-    width: 22px; height: 22px;
-    border: 3px solid #eee;
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin .8s linear infinite;
-    flex: none;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .overlayText { line-height: 1.3; }
-  .overlayText b { display: block; color: var(--accent); }
-
-  #previewLoader {
-    position: absolute;
-    inset: 0;
-    background: rgba(255,255,255,.4);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 5;
-    pointer-events: none;
-  }
-  #previewLoader.active { display: flex; }
-
-  /* ============ Сводка ============ */
-  .summaryRow {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 0;
-    border-bottom: 1px solid #eee;
-  }
-  .summaryRow:last-child { border-bottom: none; }
-  .summaryRow input[type="color"] {
-    width: 36px; height: 24px; padding: 0; border: 1px solid #ccc; flex: none;
-  }
-  .summaryRow select {
-    width: 150px; padding: 3px 5px; font-size: 12px; flex: none;
-  }
-  .summaryRow .usage {
-    flex: 1; font-size: 11px; color: #666; line-height: 1.2;
-  }
-  .summaryRow .usage b { color: #333; font-weight: 600; }
-  .summaryRow .cnt {
-    font-size: 10px; color: #888; background: #f0f0f0;
-    border-radius: 8px; padding: 1px 6px; flex: none;
-  }
-</style>
+<script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+<script>
+  // ⚠️ Замени на свой URL. Слэш в конце обязателен.
+  window.APP_BASE_URL = "http://localhost:8000/";
+</script>
 </head>
 <body>
 
 <div id="topProgress"></div>
 
-<div id="panel">
-  <h1>Генератор графиков дежурств</h1>
+<div id="layout">
 
-  <div class="btns">
-    <button id="btnRefresh">Обновить</button>
-    <button id="btnAuto" class="secondary">Авто: ВКЛ</button>
-  </div>
-  <div class="btns">
-    <button id="btnCopy" class="secondary" style="flex:2">Скопировать параметры шаблона</button>
-    <button id="btnPdf" class="secondary">PDF</button>
-    <button id="btnPng" class="secondary">PNG</button>
+  <div id="previewWrap">
+    <button id="btnPrevMonth" class="navBtn" title="Предыдущий месяц">‹</button>
+    <div class="pagePreview" id="preview"></div>
+    <button id="btnNextMonth" class="navBtn" title="Следующий месяц">›</button>
   </div>
 
-  <!-- ============ ШАБЛОНЫ ============ -->
-  <details open>
-    <summary>Использовать шаблон</summary>
-    <div class="details-body">
-      <div class="field">
-        <label>Готовые</label>
-        <select id="tplSelect">
-          <option value="">— выбрать —</option>
-        </select>
-        <button class="mini secondary" id="btnTplSave">+ Сохр.</button>
-      </div>
-      <div class="field" style="align-items:flex-start">
-        <label style="padding-top:4px">Вставить</label>
-        <textarea id="tplPaste" placeholder="Вставьте JSON сюда и нажмите «Применить»"></textarea>
-      </div>
-      <div class="btns" style="margin:0">
-        <button class="secondary mini" id="btnTplApply" style="flex:1">Применить JSON</button>
-      </div>
-      <div class="hint">Шаблон можно сохранить в виде текста или в формате JSON, а затем использовать снова. Если хотите, чтобы ваш шаблон добавили в общий доступ — пишите @ArtemSavitskiy</div>
+  <div id="panel">
+    <h1>Генератор графиков дежурств</h1>
+
+    <div class="btns">
+      <button id="btnPdf" class="secondary" style="flex:1">Сохранить в PDF ⤓</button>
+      <button id="btnPng" class="secondary" style="flex:1">Сохранить в PNG ⤓</button>
     </div>
-  </details>
+    <div class="hint" style="margin-bottom:12px">Рекомендуемо сохранять в PDF.</div>
 
-  <!-- ============ НАСТРОЙКИ ============ -->
-  <details open>
-    <summary>Настройки</summary>
-    <div class="details-body">
-      <div class="hint">1. Выберите период и отметьте имеющиеся комнаты</div>
-      <div class="field"><label>С месяца</label><input type="month" id="tMonthFrom" value="2026-12"></div>
-      <div class="field"><label>По месяц</label><input type="month" id="tMonthTo" value="2026-12"></div>
-      <div class="field" style="align-items:flex-start">
-        <label style="padding-top:4px">Комнаты</label>
-        <textarea id="tRooms" style="min-height:44px">1-9, 21-25</textarea>
+    <!-- ШАБЛОНЫ -->
+    <details open>
+      <summary>Использовать шаблон</summary>
+      <div class="details-body">
+        <div class="field">
+          <label>Готовые</label>
+          <select id="tplSelect">
+            <option value="">— выбрать —</option>
+          </select>
+        </div>
+        <div class="btns" style="margin:8px 0 0">
+          <button id="btnTplSave" class="secondary mini" style="flex:1">⤓ Сохранить текущие настройки дизайна как шаблон</button>
+        </div>
+        <div class="btns" style="margin:8px 0 0">
+          <button id="btnTplLoad" class="secondary mini" style="flex:1">Импортировать шаблон с устройства</button>
+        </div>
+        <input type="file" id="tplFileInput" accept="application/json,.json" hidden>
+        <div class="hint">
+          Шаблон содержит только визуальные параметры: размеры, шрифты, цвета, картинки.
+          Период, комнаты и масштаб превью — отдельно, в разделе «Настройки».
+        </div>
       </div>
-      <div class="hint">Формат: диапазоны через запятую. Пример: 1-9, 21-25, 30, 42-45</div>
-      <div class="field"><label>Последняя дежурившая комната</label><input type="number" id="tLastRoom" value="22" step="1"></div>
-      <div class="hint">Отметьте любой номер комнаты и дату дежурства, какие помните, чтобы отправная точка составления расписания была верной.</div>
-      <div class="field"><label>Дата последнего дежурства</label><input type="date" id="tLastDate" value="2025-12-29"></div>
-      <div class="field"><label>Порядок комнат</label>
-        <select id="tOrder">
-          <option value="forward" selected>Прямой</option>
-          <option value="backward">Обратный</option>
-        </select>
-      </div>
+    </details>
 
-      <div class="hint" style="margin-top:8px">2. Предпросмотр (в окне предпросмотра отображается только один выбранный месяц. Выбранный промежуток доступен при сохранении в PDF или PNG.)</div>
-      <div class="field"><label>Месяц предпросмотра</label><input type="month" id="tPreviewMonth" value="2026-12"></div>
-      <div class="field"><label>Масштаб превью</label><input type="number" id="pScale" value="1.1" step="0.05"><span class="unit">×</span></div>
-      <div class="field"><label>Строк на превью</label>
-        <select id="pRows"><option value="5" selected>5</option><option value="6">6</option></select>
-      </div>
-      <div class="field"><label>Только 6-строчный формат</label>
-        <input type="checkbox" id="pAlwaysSix">
-      </div>
+    <!-- НАСТРОЙКИ -->
+    <details open>
+      <summary>Настройки</summary>
+      <div class="details-body">
+        <div class="hint">1. Период и состав комнат</div>
+        <div class="field"><label>С месяца</label><input type="month" id="tMonthFrom" value="2026-12"></div>
+        <div class="field"><label>По месяц</label><input type="month" id="tMonthTo" value="2026-12"></div>
+        <div class="hint">Выбранный промежуток не буден отображен на превью, но появится при сохранении.</div>
+        <div class="field" style="align-items:flex-start">
+          <label style="padding-top:4px">Комнаты</label>
+          <textarea id="tRooms" style="min-height:44px">1-9, 21-25</textarea>
+        </div>
+        <div class="hint">Формат: 1-9, 21-25, 30, 42-45</div>
+        <div class="field"><label>Последняя продежурившая комната</label><input type="number" id="tLastRoom" value="22" step="1"></div>
+        <div class="hint">Отметьте номер любой комнаты и дату её дежурства, какие помните, чтобы расписание составилось правильно.</div>
+        <div class="field"><label>Дата её дежурства</label><input type="date" id="tLastDate" value="2025-12-29"></div>
+        <div class="field"><label>Порядок</label>
+          <select id="tOrder">
+            <option value="forward" selected>Прямой</option>
+            <option value="backward">Обратный</option>
+          </select>
+        </div>
 
-      <div class="hint" style="margin-top:8px">3. Формат листа</div>
-      <div class="field"><label>Стандартный</label>
-        <select id="pPageFormat">
-          <option value="A4-l">A4 альбомная (297×210)</option>
-          <option value="A4-p">A4 книжная (210×297)</option>
-          <option value="A3-l">A3 альбомная (420×297)</option>
-          <option value="A3-p">A3 книжная (297×420)</option>
-          <option value="A5-l">A5 альбомная (210×148)</option>
-          <option value="A5-p">A5 книжная (148×210)</option>
-          <option value="custom" selected>Пользовательский</option>
-        </select>
+        <div class="hint" style="margin-top:8px">2. Предпросмотр</div>
+        <div class="field"><label>Месяц превью</label><input type="month" id="tPreviewMonth" value="2026-12"></div>
+        <div class="field"><label>Масштаб превью</label><input type="number" id="pScale" value="1.1" step="0.05"><span class="unit">×</span></div>
+
+        <div class="hint" style="margin-top:8px">3. Формат листа</div>
+        <div class="field"><label>Формат листа</label>
+          <select id="pPageFormat">
+            <option value="A4-l">A4 альбомная (297×210)</option>
+            <option value="A4-p">A4 книжная (210×297)</option>
+            <option value="A3-l">A3 альбомная (420×297)</option>
+            <option value="A3-p">A3 книжная (297×420)</option>
+            <option value="A5-l">A5 альбомная (210×148)</option>
+            <option value="A5-p">A5 книжная (148×210)</option>
+            <option value="custom" selected>Пользовательский</option>
+          </select>
+        </div>
+        <div class="row2">
+          <div><div class="field"><label>Ширина</label><input type="number" id="pPageW" value="297" step="0.1"><span class="unit">мм</span></div></div>
+          <div><div class="field"><label>Высота</label><input type="number" id="pPageH" value="210" step="0.1"><span class="unit">мм</span></div></div>
+        </div>
       </div>
-      <div class="row2">
-        <div><div class="field"><label>Ширина</label><input type="number" id="pPageW" value="297" step="0.1"><span class="unit">мм</span></div></div>
-        <div><div class="field"><label>Высота</label><input type="number" id="pPageH" value="210" step="0.1"><span class="unit">мм</span></div></div>
-      </div>
-    </div>
-  </details>
+    </details>
 
-  <!-- ============ СЕТКА ============ -->
-  <details>
-    <summary>Сетка</summary>
-    <div class="details-body">
-      <div class="field"><label>Отступ сверху</label><input type="number" id="pTopMargin" value="15.9" step="0.5"><span class="unit">мм</span></div>
-      <div class="field"><label>Отступ слева/справа</label><input type="number" id="pSideMargin" value="0" step="0.5"><span class="unit">мм</span></div>
-      <div class="field"><label>Зазор колонок</label><input type="number" id="pColGap" value="0" step="0.1"><span class="unit">мм</span></div>
-      <div class="field"><label>rowGap (5 строк)</label><input type="number" id="pRowGap5" value="11.5" step="0.5"><span class="unit">мм</span></div>
-      <div class="field"><label>rowGap (6 строк)</label><input type="number" id="pRowGap6" value="6" step="0.5"><span class="unit">мм</span></div>
-    </div>
-  </details>
+    <!-- СЕТКА -->
+    <details>
+      <summary>Сетка</summary>
+      <div class="details-body">
+        <div class="field"><label>Отступ сверху</label><input type="number" id="pTopMargin" value="15.9" step="0.5"><span class="unit">мм</span></div>
+        <div class="field"><label>Отступ слева/справа</label><input type="number" id="pSideMargin" value="0" step="0.5"><span class="unit">мм</span></div>
+        <div class="field"><label>Зазор колонок</label><input type="number" id="pColGap" value="0" step="0.1"><span class="unit">мм</span></div>
 
-  <!-- ============ ДАТЫ ============ -->
-  <details>
-    <summary>Даты</summary>
-    <div class="details-body">
-      <div class="field"><label>Высота</label><input type="number" id="pDateH" value="18.3" step="0.1"><span class="unit">мм</span></div>
-      <div class="field"><label>Шрифт (основной)</label><select id="pDateFont"></select></div>
-      <div class="field"><label>Шрифт (дополнительный)</label><select id="pDateFontOther"></select></div>
-      <div class="field"><label>Размер</label><input type="number" id="pDateSize" value="48.5" step="0.5"><span class="unit">pt</span></div>
-      <div class="field"><label>Смещение X</label><input type="number" id="pDateDX" value="0" step="0.1"><span class="unit">мм</span></div>
-      <div class="field"><label>Смещение Y</label><input type="number" id="pDateDY" value="3.5" step="0.1"><span class="unit">мм</span></div>
-    </div>
-  </details>
+        <div class="field"><label>Только 6-ти строчный формат</label><input type="checkbox" id="pAlwaysSix"></div>
+        <div class="hint">Если отжато — формат подстраивается под количество строк, необходимых для месяца (5 или 6).</div>
+        <div class="field"><label>Межстрочное расстояние</label><input type="number" id="pRowGap" value="11.5" step="0.5"><span class="unit">мм</span></div>
+        <div class="hint">Для 6-строчного формата расстояние рассчитывается автоматически так, чтобы нижняя граница сетки совпадала с 5-строчным.</div>
 
-  <!-- ============ НОМЕРА КОМНАТ ============ -->
-  <details>
-    <summary>Номера комнат</summary>
-    <div class="details-body">
-      <div class="field"><label>Высота (может быть &lt; 0)</label><input type="number" id="pRoomH" value="-0.8" step="0.1"><span class="unit">мм</span></div>
-      <div class="field"><label>Шрифт (основной)</label><select id="pRoomFont"></select></div>
-      <div class="field"><label>Шрифт (дополнительный)</label><select id="pRoomFontOther"></select></div>
-      <div class="field"><label>Размер</label><input type="number" id="pRoomSize" value="18" step="0.5"><span class="unit">pt</span></div>
-      <div class="field"><label>Смещение X</label><input type="number" id="pRoomDX" value="0" step="0.1"><span class="unit">мм</span></div>
-      <div class="field"><label>Смещение Y</label><input type="number" id="pRoomDY" value="3.4" step="0.1"><span class="unit">мм</span></div>
-      <div class="field"><label>Доп. символы</label><input type="text" id="pRoomTemplate" value="НОМЕР"></div>
-      <div class="hint">Шаблон номера (НОМЕР = сам номер):</div>
-      <div class="field"><label>Отображать этаж</label><input type="checkbox" id="pRoomShowFloor"></div>
-      <div class="field"><label>Этаж</label><input type="number" id="pRoomFloor" value="0" step="1"></div>
-      <div class="hint">Если «Отображать этаж» включено — впереди добавляется номер этажа (этаж 4: 401, 417).</div>
-    </div>
-  </details>
+        <div class="hint" style="margin-top:12px">Разделительные линии</div>
+        <div class="field"><label>Толщина (верт.)</label><input type="number" id="pLineW" value="0.5" step="0.05"><span class="unit">мм</span></div>
+        <div class="field"><label>Тип (верт.)</label>
+          <select id="pLineDash">
+            <option value="solid" selected>Сплошная</option>
+            <option value="dashed">Пунктир</option>
+            <option value="dotted">Точки</option>
+            <option value="dashdot">Штрих-точка</option>
+            <option value="dashdotdot">Штрих-две точки</option>
+          </select>
+        </div>
+        <div class="field"><label>Верх (от верха стр.)</label><input type="number" id="pLineTop" value="11.6" step="0.5"><span class="unit">мм</span></div>
+        <div class="field"><label>Низ (от верха стр.)</label><input type="number" id="pLineBottom" value="155.6" step="0.5"><span class="unit">мм</span></div>
 
-  <!-- ============ ЛИНИИ ============ -->
-  <details>
-    <summary>Разделительные линии</summary>
-    <div class="details-body">
-      <div class="field"><label>Толщина (верт.)</label><input type="number" id="pLineW" value="0.5" step="0.05"><span class="unit">мм</span></div>
-      <div class="field"><label>Верх (от верха стр.)</label><input type="number" id="pLineTop" value="11.6" step="0.5"><span class="unit">мм</span></div>
-      <div class="field"><label>Низ (от верха стр.)</label><input type="number" id="pLineBottom" value="155.6" step="0.5"><span class="unit">мм</span></div>
-      <div class="field"><label>Горизонтальные линии</label><input type="checkbox" id="pLineHoriz"></div>
-      <div class="field"><label>Толщина (гориз.)</label><input type="number" id="pLineHorizW" value="0.5" step="0.05"><span class="unit">мм</span></div>
-      <div class="field"><label>Отступ от краёв (гориз.)</label><input type="number" id="pLineHorizPad" value="0" step="0.5"><span class="unit">мм</span></div>
-    </div>
-  </details>
+        <div class="field"><label>Горизонтальные линии</label><input type="checkbox" id="pLineHoriz"></div>
+        <div class="horizDeps">
+          <div class="field"><label>Толщина (гориз.)</label><input type="number" id="pLineHorizW" value="0.5" step="0.05"><span class="unit">мм</span></div>
+          <div class="field"><label>Тип (гориз.)</label>
+            <select id="pLineHorizDash">
+              <option value="solid" selected>Сплошная</option>
+              <option value="dashed">Пунктир</option>
+              <option value="dotted">Точки</option>
+              <option value="dashdot">Штрих-точка</option>
+              <option value="dashdotdot">Штрих-две точки</option>
+            </select>
+          </div>
+          <div class="field"><label>Отступ от краёв (гориз.)</label><input type="number" id="pLineHorizPad" value="0" step="0.5"><span class="unit">мм</span></div>
+        </div>
 
-  <!-- ============ ДНИ НЕДЕЛИ ============ -->
-  <details>
-    <summary>Дни недели</summary>
-    <div class="details-body">
-      <div class="field"><label>Шрифт</label><select id="pWdFont"></select></div>
-      <div class="field"><label>Форма</label>
-        <select id="pWdForm">
-          <option value="short" selected>Сокращённая (Пн)</option>
-          <option value="full">Полная (Понедельник)</option>
-        </select>
-      </div>
-      <div class="field"><label>Регистр</label>
-        <select id="pWdCase">
-          <option value="upper" selected>ВЕРХНИЙ</option>
-          <option value="lower">нижний</option>
-          <option value="capitalize">С заглавной</option>
-        </select>
-      </div>
-      <div class="field"><label>Размер</label><input type="number" id="pWdSize" value="15" step="0.5"><span class="unit">pt</span></div>
-      <div class="field"><label>Отступ слева</label><input type="number" id="pWdPadLeft" value="3.8" step="0.1"><span class="unit">мм</span></div>
-      <div class="field"><label>Базовая Y (от низа стр.)</label><input type="number" id="pWdY" value="54.4" step="0.1"><span class="unit">мм</span></div>
-    </div>
-  </details>
-
-  <!-- ============ НИЖНЯЯ ПЛАШКА ============ -->
-  <details>
-    <summary>Нижняя плашка</summary>
-    <div class="details-body">
-      <div class="field"><label>Высота</label><input type="number" id="pBarH" value="44.2" step="0.1"><span class="unit">мм</span></div>
-
-      <div class="hint">Строка 1</div>
-      <div class="field"><label>Текст</label><input type="text" id="pBarLine1" value="График дежурств"></div>
-      <div class="field"><label>Шрифт</label><select id="pBarLine1Font"></select></div>
-      <div class="field"><label>Размер</label><input type="number" id="pBarLine1Size" value="29" step="0.5"><span class="unit">pt</span></div>
-
-      <div class="hint">Строка 2</div>
-      <div class="field"><label>Текст (шаблон)</label><input type="text" id="pBarLine2" value="МЕСЯЦ ГОД"></div>
-      <div class="field"><label>Шрифт</label><select id="pBarLine2Font"></select></div>
-      <div class="field"><label>Размер</label><input type="number" id="pBarLine2Size" value="37" step="0.5"><span class="unit">pt</span></div>
-
-      <div class="hint">Положение блока</div>
-      <div class="field"><label>Отступ от левого края</label><input type="number" id="pBarDX" value="44.8" step="0.5"><span class="unit">мм</span></div>
-      <div class="field"><label>Смещение по вертикали</label><input type="number" id="pBarDY" value="-0.3" step="0.1"><span class="unit">мм</span></div>
-      <div class="field"><label>Межстрочный интервал</label><input type="number" id="pBarLineGap" value="1.25" step="0.05"><span class="unit">×</span></div>
-
-      <div class="hint">Обтравочная маска</div>
-      <div class="field"><label>Обрезать изображения по плашке</label>
-        <input type="checkbox" id="pBarClip" checked>
-      </div>
-    </div>
-  </details>
-
-  <!-- ============ ИЗОБРАЖЕНИЯ ============ -->
-  <details open>
-    <summary>Изображения</summary>
-    <div class="details-body">
-      <div class="btns" style="margin-bottom:8px">
-        <button id="btnAddImage" class="secondary" style="flex:1">+ Добавить изображение</button>
-      </div>
-      <div id="imagesList"></div>
-      <div class="hint">Перетаскивайте картинки на превью курсором.</div>
-    </div>
-  </details>
-
-  <!-- ============ СВОДКА ПО ЦВЕТАМ ============ -->
-  <details open>
-    <summary>🎨 Сводка по цветам</summary>
-    <div class="details-body">
-      <div class="hint">
-        Все уникальные цвета из панели. Меняете здесь — меняется везде, где используется этот цвет.
-        Чтобы у одного элемента сделать отдельный цвет — поменяйте его в его секции ниже: в сводке появится новая строка.
-      </div>
-      <div id="colorSummary"></div>
-    </div>
-  </details>
-  
-  <!-- ============ ЦВЕТА (отдельные) ============ -->
-  <details>
-    <summary>Цвета (по элементам)</summary>
-    <div class="details-body">
-      <div class="colorGroup">
-        <div class="hint">Даты</div>
-        <div class="field"><label>Текущий месяц</label><input type="color" id="pDateColor" value="#010101"></div>
-        <div class="field"><label>Соседний месяц</label><input type="color" id="pDateColorOther" value="#B2B2B2"></div>
-      </div>
-      <div class="colorGroup">
-        <div class="hint">Номера комнат</div>
-        <div class="field"><label>Текущий месяц</label><input type="color" id="pRoomColor" value="#804A94"></div>
-        <div class="field"><label>Соседний месяц</label><input type="color" id="pRoomColorOther" value="#B2B2B2"></div>
-      </div>
-      <div class="colorGroup">
-        <div class="hint">Нижняя плашка</div>
-        <div class="field"><label>Фон</label><input type="color" id="pBarBg" value="#804A94"></div>
-        <div class="field"><label>Строка 1</label><input type="color" id="pBarLine1Color" value="#FFFFFF"></div>
-        <div class="field"><label>Строка 2</label><input type="color" id="pBarLine2Color" value="#FFFFFF"></div>
-      </div>
-      <div class="colorGroup">
-        <div class="hint">Дни недели</div>
-        <div class="field"><label>Цвет</label><input type="color" id="pWdColor" value="#010101"></div>
-      </div>
-      <div class="colorGroup">
-        <div class="hint">Линии</div>
         <div class="field"><label>Цвет</label><input type="color" id="pLineColor" value="#010101"></div>
       </div>
-    </div>
-  </details>
+    </details>
 
-  <!-- ============ СВОДКА ПО ШРИФТАМ ============ -->
-  <details open>
-    <summary>🔤 Сводка по шрифтам</summary>
-    <div class="details-body">
-      <div class="hint">
-        Все уникальные шрифты из панели. Меняете здесь — меняется везде, где используется этот шрифт.
-        Чтобы у одного элемента сделать отдельный шрифт — поменяйте его в его секции выше.
+    <!-- ДАТЫ -->
+    <details>
+      <summary>Даты</summary>
+      <div class="details-body">
+        <div class="field"><label>Высота</label><input type="number" id="pDateH" value="18.3" step="0.1"><span class="unit">мм</span></div>
+        <div class="field"><label>Размер</label><input type="number" id="pDateSize" value="48.5" step="0.5"><span class="unit">pt</span></div>
+        <div class="field"><label>Трекинг</label><input type="number" id="pDateTracking" value="0" step="0.1"><span class="unit">‰</span></div>
+        <div class="field"><label>Смещение X</label><input type="number" id="pDateDX" value="0" step="0.1"><span class="unit">мм</span></div>
+        <div class="field"><label>Смещение Y</label><input type="number" id="pDateDY" value="3.5" step="0.1"><span class="unit">мм</span></div>
+
+        <div class="hint">Шрифт (основной)</div>
+        <div class="fontPicker" data-target="date.font">
+          <select class="fontFamily"></select>
+          <select class="fontStyle"></select>
+        </div>
+
+        <div class="hint">Шрифт (дополнительный)</div>
+        <div class="fontPicker" data-target="date.fontOther">
+          <select class="fontFamily"></select>
+          <select class="fontStyle"></select>
+        </div>
+
+        <div class="hint">Выравнивание текста</div>
+        <div class="fontAlignStandalone" data-align-target="date">
+          <button class="alignBtn" data-align="left" title="По левому краю">◧</button>
+          <button class="alignBtn" data-align="center" title="По центру">▣</button>
+          <button class="alignBtn" data-align="right" title="По правому краю">◨</button>
+        </div>
+
+        <div class="colorGroup">
+          <div class="field"><label>Цвет основного текста</label><input type="color" id="pDateColor" value="#010101"></div>
+          <div class="field"><label>Цвет дополнительного текста</label><input type="color" id="pDateColorOther" value="#b2b2b2"></div>
+        </div>
       </div>
-      <div id="fontSummary"></div>
-    </div>
-  </details>
-  
-    <!-- ============ ШРИФТЫ ============ -->
-  <details>
-    <summary>Шрифты</summary>
-    <div class="details-body">
-      <div class="fontList" id="fontList"></div>
-      <div class="btns" style="margin-top:8px">
-        <button id="btnFontAdd" class="secondary" style="flex:1">+ Добавить шрифт</button>
+    </details>
+
+    <!-- КОМНАТЫ -->
+    <details>
+      <summary>Номера комнат</summary>
+      <div class="details-body">
+        <div class="field"><label>Высота (может быть &lt; 0)</label><input type="number" id="pRoomH" value="-0.8" step="0.1"><span class="unit">мм</span></div>
+        <div class="field"><label>Размер</label><input type="number" id="pRoomSize" value="18" step="0.5"><span class="unit">pt</span></div>
+        <div class="field"><label>Трекинг</label><input type="number" id="pRoomTracking" value="0" step="0.1"><span class="unit">‰</span></div>
+        <div class="field"><label>Смещение X</label><input type="number" id="pRoomDX" value="0" step="0.1"><span class="unit">мм</span></div>
+        <div class="field"><label>Смещение Y</label><input type="number" id="pRoomDY" value="3.4" step="0.1"><span class="unit">мм</span></div>
+        <div class="field"><label>Доп. символы</label><input type="text" id="pRoomTemplate" value="НОМЕР"></div>
+        <div class="hint">Шаблон номера (НОМЕР = сам номер):</div>
+        <div class="field"><label>Отображать этаж</label><input type="checkbox" id="pRoomShowFloor"></div>
+        <div class="field"><label>Этаж</label><input type="number" id="pRoomFloor" value="1" step="1"></div>
+        <div class="hint">Если «Отображать этаж» включено — впереди добавляется номер этажа (этаж 4: 401, 417).</div>
+
+        <div class="hint">Шрифт (основной)</div>
+        <div class="fontPicker" data-target="room.font">
+          <select class="fontFamily"></select>
+          <select class="fontStyle"></select>
+        </div>
+
+        <div class="hint">Шрифт (дополнительный)</div>
+        <div class="fontPicker" data-target="room.fontOther">
+          <select class="fontFamily"></select>
+          <select class="fontStyle"></select>
+        </div>
+
+        <div class="hint">Выравнивание текста</div>
+        <div class="fontAlignStandalone" data-align-target="room">
+          <button class="alignBtn" data-align="left">◧</button>
+          <button class="alignBtn" data-align="center">▣</button>
+          <button class="alignBtn" data-align="right">◨</button>
+        </div>
+
+        <div class="colorGroup">
+          <div class="field"><label>Цвет основного текста</label><input type="color" id="pRoomColor" value="#804a94"></div>
+          <div class="field"><label>Цвет дополнительного текста</label><input type="color" id="pRoomColorOther" value="#b2b2b2"></div>
+        </div>
       </div>
-      <div class="hint">Вы можете загрузить свои шрифты.</div>
-    </div>
-  </details>
-  
-  <!-- ============ КАНАЛ ============ -->
-  <details>
-    <summary>Канал создателя генератора</summary>
-    <div class="details-body">
-      <div class="field"><label>Текст</label><span style="flex:2;font-size:12px;color:var(--accent);font-weight:600">t.me/ARTemaARTema</span></div>
-      <div class="field"><label>Шрифт</label><select id="pArtFont"></select></div>
-      <div class="field"><label>Размер</label><input type="number" id="pArtSize" value="12" step="0.5"><span class="unit">pt</span></div>
-      <div class="field"><label>Высота плашки</label><input type="number" id="pArtH" value="10.6" step="0.1"><span class="unit">мм</span></div>
-      <div class="field"><label>Отступ справа</label><input type="number" id="pArtRight" value="7.5" step="0.5"><span class="unit">мм</span></div>
-      <div class="field"><label>Отступ сверху</label><input type="number" id="pArtTop" value="0.5" step="0.5"><span class="unit">мм</span></div>
-      <div class="field"><label>Внутр. отступ X</label><input type="number" id="pArtPadX" value="2" step="0.5"><span class="unit">мм</span></div>
-      <div class="field"><label>Цвет текста</label><input type="color" id="pArtColor" value="#804A94"></div>
-      <div class="field"><label>Прозрачность</label><input type="range" id="pArtOpacity" min="0" max="100" value="40"><span id="pArtOpacityVal" style="width:34px;font-size:11px;color:#888;text-align:right">40%</span></div>
-      <div class="muted">Да, ты можешь выкрутить в ноль. Я не стану этому препятствовать. Но знай, что тем самым ты разбиваешь мне сердце(</div>
-    </div>
-  </details>
+    </details>
 
-  <div id="log"></div>
-</div>
+    <!-- ДНИ НЕДЕЛИ -->
+    <details>
+      <summary>Дни недели</summary>
+      <div class="details-body">
+        <div class="field"><label>Форма</label>
+          <select id="pWdForm">
+            <option value="short" selected>Сокращённая (Пн)</option>
+            <option value="full">Полная (Понедельник)</option>
+          </select>
+        </div>
+        <div class="field"><label>Регистр</label>
+          <select id="pWdCase">
+            <option value="upper" selected>ВЕРХНИЙ</option>
+            <option value="lower">нижний</option>
+            <option value="capitalize">С заглавной</option>
+          </select>
+        </div>
+        <div class="field"><label>Размер</label><input type="number" id="pWdSize" value="15" step="0.5"><span class="unit">pt</span></div>
+        <div class="field"><label>Трекинг</label><input type="number" id="pWdTracking" value="0" step="0.1"><span class="unit">‰</span></div>
+        <div class="field"><label>Отступ слева</label><input type="number" id="pWdPadLeft" value="3.8" step="0.1"><span class="unit">мм</span></div>
+        <div class="field"><label>Базовая Y (от низа стр.)</label><input type="number" id="pWdY" value="54.4" step="0.1"><span class="unit">мм</span></div>
 
-<div id="previewWrap">
-  <div class="pagePreview" id="preview"></div>
-  <div id="previewLoader"><div class="spinner"></div></div>
+        <div class="hint">Шрифт</div>
+        <div class="fontPicker" data-target="weekday.font">
+          <select class="fontFamily"></select>
+          <select class="fontStyle"></select>
+        </div>
+
+        <div class="hint">Выравнивание текста</div>
+        <div class="fontAlignStandalone" data-align-target="weekday">
+          <button class="alignBtn" data-align="left">◧</button>
+          <button class="alignBtn" data-align="center">▣</button>
+          <button class="alignBtn" data-align="right">◨</button>
+        </div>
+
+        <div class="field"><label>Цвет</label><input type="color" id="pWdColor" value="#010101"></div>
+      </div>
+    </details>
+
+    <!-- ПЛАШКА -->
+    <details>
+      <summary>Нижняя плашка</summary>
+      <div class="details-body">
+        <div class="field"><label>Высота</label><input type="number" id="pBarH" value="44.2" step="0.1"><span class="unit">мм</span></div>
+
+        <div class="hint">Строка 1</div>
+        <div class="field"><label>Текст</label><input type="text" id="pBarLine1" value="График дежурств"></div>
+        <div class="field"><label>Размер</label><input type="number" id="pBarLine1Size" value="29" step="0.5"><span class="unit">pt</span></div>
+        <div class="field"><label>Трекинг</label><input type="number" id="pBarLine1Tracking" value="0" step="0.1"><span class="unit">‰</span></div>
+        <div class="fontPicker" data-target="bar.line1Font">
+          <select class="fontFamily"></select>
+          <select class="fontStyle"></select>
+        </div>
+        <div class="hint">Выравнивание строки 1</div>
+        <div class="fontAlignStandalone" data-align-target="bar.line1">
+          <button class="alignBtn" data-align="left">◧</button>
+          <button class="alignBtn" data-align="center">▣</button>
+          <button class="alignBtn" data-align="right">◨</button>
+        </div>
+        <div class="field"><label>Цвет</label><input type="color" id="pBarLine1Color" value="#ffffff"></div>
+
+        <div class="hint">Строка 2</div>
+        <div class="field"><label>Текст (шаблон)</label><input type="text" id="pBarLine2" value="МЕСЯЦ ГОД"></div>
+        <div class="field"><label>Размер</label><input type="number" id="pBarLine2Size" value="37" step="0.5"><span class="unit">pt</span></div>
+        <div class="field"><label>Трекинг</label><input type="number" id="pBarLine2Tracking" value="0" step="0.1"><span class="unit">‰</span></div>
+        <div class="fontPicker" data-target="bar.line2Font">
+          <select class="fontFamily"></select>
+          <select class="fontStyle"></select>
+        </div>
+        <div class="hint">Выравнивание строки 2</div>
+        <div class="fontAlignStandalone" data-align-target="bar.line2">
+          <button class="alignBtn" data-align="left">◧</button>
+          <button class="alignBtn" data-align="center">▣</button>
+          <button class="alignBtn" data-align="right">◨</button>
+        </div>
+        <div class="field"><label>Цвет</label><input type="color" id="pBarLine2Color" value="#ffffff"></div>
+
+        <div class="hint">Положение блока</div>
+        <div class="field"><label>Отступ от левого края</label><input type="number" id="pBarDX" value="44.8" step="0.5"><span class="unit">мм</span></div>
+        <div class="field"><label>Смещение по вертикали</label><input type="number" id="pBarDY" value="-0.3" step="0.1"><span class="unit">мм</span></div>
+        <div class="field"><label>Межстрочный интервал</label><input type="number" id="pBarLineGap" value="1.25" step="0.05"><span class="unit">×</span></div>
+        <div class="field"><label>Фон</label><input type="color" id="pBarBg" value="#804a94"></div>
+
+        <div class="hint">Обтравочная маска</div>
+        <div class="field"><label>Обрезать изображения по плашке</label><input type="checkbox" id="pBarClip" checked></div>
+      </div>
+    </details>
+
+    <!-- ИЗОБРАЖЕНИЯ -->
+    <details open>
+      <summary>Изображения</summary>
+      <div class="details-body">
+        <div class="btns" style="margin-bottom:8px">
+          <button id="btnAddImage" class="secondary" style="flex:1">+ Добавить изображение</button>
+        </div>
+        <div id="imagesList"></div>
+        <div class="hint">Максимум 2 изображения. Перетаскивайте картинки на превью курсором.</div>
+      </div>
+    </details>
+
+    <!-- СВОДКА ПО ЦВЕТАМ -->
+    <details open>
+      <summary>🎨 Сводка по цветам</summary>
+      <div class="details-body">
+        <div class="hint">
+          Все уникальные цвета из панели. Меняете здесь — меняется везде, где используется этот цвет.
+          Чтобы у одного элемента сделать отдельный цвет — поменяйте его в его секции: в сводке появится новая строка.
+        </div>
+        <div id="colorSummary"></div>
+      </div>
+    </details>
+
+    <!-- СВОДКА ПО ШРИФТАМ -->
+    <details open>
+      <summary>🔤 Сводка по шрифтам</summary>
+      <div class="details-body">
+        <div class="hint">
+          Все уникальные шрифты из панели. Меняете здесь — меняется везде, где используется этот шрифт.
+          Чтобы у одного элемента сделать отдельный шрифт — поменяйте его в его секции выше.
+        </div>
+        <div id="fontSummary"></div>
+      </div>
+    </details>
+
+    <!-- КАНАЛ -->
+    <details>
+      <summary>Канал создателя генератора</summary>
+      <div class="details-body">
+        <div class="field"><label>Текст</label><span style="flex:2;font-size:12px;color:var(--accent);font-weight:600">t.me/ARTemaARTema</span></div>
+        <div class="field"><label>Размер</label><input type="number" id="pArtSize" value="12" step="0.5"><span class="unit">pt</span></div>
+        <div class="field"><label>Трекинг</label><input type="number" id="pArtTracking" value="0" step="0.1"><span class="unit">‰</span></div>
+        <div class="field"><label>Высота плашки</label><input type="number" id="pArtH" value="10.6" step="0.1"><span class="unit">мм</span></div>
+        <div class="field"><label>Отступ справа</label><input type="number" id="pArtRight" value="7.5" step="0.5"><span class="unit">мм</span></div>
+        <div class="field"><label>Отступ сверху</label><input type="number" id="pArtTop" value="0.5" step="0.5"><span class="unit">мм</span></div>
+        <div class="field"><label>Внутр. отступ X</label><input type="number" id="pArtPadX" value="2" step="0.5"><span class="unit">мм</span></div>
+
+        <div class="hint">Шрифт</div>
+        <div class="fontPicker" data-target="art.font">
+          <select class="fontFamily"></select>
+          <select class="fontStyle"></select>
+        </div>
+
+        <div class="field"><label>Цвет текста</label><input type="color" id="pArtColor" value="#804a94"></div>
+        <div class="field"><label>Прозрачность</label><input type="range" id="pArtOpacity" min="20" max="100" value="40"><span id="pArtOpacityVal" style="width:34px;font-size:11px;color:#888;text-align:right">40%</span></div>
+        <div class="muted">Я очень рад, что ты пользуешься моим редактором графиков дежурств. Надеюсь он упрощает тебе их составление. Желаю тебе хорошего дня!(</div>
+        <div class="muted">Если ты хочешь отблагодарить меня - можешь подписаться на мой канал:</div>
+        <div class="field"><label>Ссылка на канал t.me/ARTemaARTema<a id="pArtTextLink" href="https://t.me/ARTemaARTema" target="_blank" rel="noopener" title="Открыть канал автора" style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:32px;height:26px;border:2px solid #ccc;border-radius:3px;background:#fff;color:var(--accent);font-size:24px;text-decoration:none;cursor:pointer">↗</a></label></div>
+
+        <div class="muted" style="margin-top:8px">Или можешь закинуть мне что-нибудь на карту OZON по номеру телефона:</div>
+        <div class="field"><label>Телефон (клик — копировать)</label><a href="#" class="copyPhone" data-phone="89881426702" style="color:var(--accent);font-weight:600;text-decoration:none;cursor:pointer;padding:3px 6px">89881426702</a></div>
+
+        <div class="muted" style="margin-top:12px">
+          Также я занимаюсь графическим дизайном в сфере полиграфии и 3D-моделированием, анимацией, визуализацией.
+        </div>
+        <div class="field"><label>Связаться (клик — копировать)</label><a href="#" class="copyPhone" data-phone="89881426702" style="color:var(--accent);font-weight:600;text-decoration:none;cursor:pointer;padding:3px 6px">89881426702</a></div>
+        <div class="hint">Telegram / WhatsApp / Макс</div>
+      </div>
+    </details>
+
+    <div id="log"></div>
+  </div>
+
 </div>
 
 <div id="overlay">
@@ -483,1643 +400,75 @@
   </div>
 </div>
 
-<script>
-  // ⚠️ ЗАМЕНИТЕ на свой URL. Слэш в конце обязателен!
-  window.APP_BASE_URL = "https://temirsheyder.github.io/Duty-Schedule-Gen/";
-</script>
-
-<script>
-// ============================================================
-//  Базовый URL и константы
-// ============================================================
-const BASE_URL = window.APP_BASE_URL || "";
-const FONTS_URL     = BASE_URL + "fonts/";
-const IMAGES_URL    = BASE_URL + "Images/";
-const TEMPLATES_URL = BASE_URL + "templates/";
-
-const MM = 2.834645669;
-const toPt = mm => mm * MM;
-const toMm = pt => pt / MM;
-
-function clamp(v, min, max) {
-  v = Number(v);
-  if (!isFinite(v)) return min;
-  return Math.max(min, Math.min(max, v));
-}
-
-const PAGE_FORMATS = {
-  "A4-l": { w: 297, h: 210 },
-  "A4-p": { w: 210, h: 297 },
-  "A3-l": { w: 420, h: 297 },
-  "A3-p": { w: 297, h: 420 },
-  "A5-l": { w: 210, h: 148 },
-  "A5-p": { w: 148, h: 210 },
-};
-
-// ============================================================
-//  Лог
-// ============================================================
-function log(msg, cls) {
-  const el = document.getElementById("log");
-  const div = document.createElement("div");
-  if (cls) div.style.color = cls === "err" ? "red" : "green";
-  div.textContent = msg;
-  el.appendChild(div);
-  el.scrollTop = el.scrollHeight;
-}
-function clearLog() { document.getElementById("log").innerHTML = ""; }
-
-// ============================================================
-//  Прогресс
-// ============================================================
-const progressEl = document.getElementById("topProgress");
-let progressTimer = null;
-let progressValue = 0;
-
-function progressStart() {
-  progressValue = 0;
-  progressEl.classList.add("active");
-  progressEl.style.width = "0%";
-  clearInterval(progressTimer);
-  progressTimer = setInterval(() => {
-    if (progressValue < 90) {
-      progressValue += Math.max(0.5, (90 - progressValue) * 0.08);
-      progressEl.style.width = progressValue + "%";
-    }
-  }, 100);
-}
-function progressSet(p) {
-  progressValue = Math.max(0, Math.min(100, p));
-  progressEl.style.width = progressValue + "%";
-}
-function progressDone() {
-  clearInterval(progressTimer);
-  progressTimer = null;
-  progressSet(100);
-  setTimeout(() => {
-    progressEl.classList.remove("active");
-    progressEl.style.width = "0%";
-  }, 300);
-}
-
-const overlayEl = document.getElementById("overlay");
-const overlayTitleEl = document.getElementById("overlayTitle");
-const overlaySubEl = document.getElementById("overlaySub");
-function overlayShow(title, sub) {
-  overlayTitleEl.textContent = title || "Готовим…";
-  overlaySubEl.textContent = sub || "";
-  overlayEl.classList.add("active");
-}
-function overlayHide() {
-  overlayEl.classList.remove("active");
-}
-
-const previewLoaderEl = document.getElementById("previewLoader");
-function previewLoader(on) {
-  previewLoaderEl.classList.toggle("active", !!on);
-}
-
-// ============================================================
-//  Динамический акцентный цвет (от цвета плашки)
-// ============================================================
-function hexToRgb(hex) {
-  const h = hex.replace("#", "");
-  return {
-    r: parseInt(h.substr(0,2), 16),
-    g: parseInt(h.substr(2,2), 16),
-    b: parseInt(h.substr(4,2), 16),
-  };
-}
-function rgbToHex(r, g, b) {
-  const c = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
-  return "#" + c(r) + c(g) + c(b);
-}
-function mixWithWhite(hex, ratio) {
-  const { r, g, b } = hexToRgb(hex);
-  return rgbToHex(r + (255 - r) * ratio, g + (255 - g) * ratio, b + (255 - b) * ratio);
-}
-function applyAccentFromBar() {
-  const hex = document.getElementById("pBarBg").value;
-  const soft = mixWithWhite(hex, 0.95);
-  const hover = mixWithWhite(hex, 0.88);
-  document.documentElement.style.setProperty("--accent", hex);
-  document.documentElement.style.setProperty("--accent-soft", soft);
-  document.documentElement.style.setProperty("--accent-hover", hover);
-}
-
-// ============================================================
-//  Реестр шрифтов
-// ============================================================
-const FONTS = {};
-const FONT_BYTES = {};
-
-async function loadFontsManifest() {
-  const url = FONTS_URL + "index.json";
-  const resp = await fetch(url, { cache: "no-cache" });
-  if (!resp.ok) throw new Error("Не удалось загрузить " + url + " (" + resp.status + ")");
-  const data = await resp.json();
-
-  (data.builtin || []).forEach(b => {
-    FONTS[b.key] = { label: b.label, builtin: true, weight: 400 };
-  });
-  (data.fonts || []).forEach(f => {
-    FONTS[f.key] = {
-      label: f.label,
-      builtin: false,
-      url: FONTS_URL + f.file,
-      weight: f.weight || 400,
-    };
-  });
-}
-
-async function loadFontFace(key) {
-  const f = FONTS[key];
-  if (!f || f.builtin || f._fontFaceLoaded) return;
-  try {
-    let buf = FONT_BYTES[key];
-    if (!buf) {
-      const r = await fetch(f.url);
-      if (!r.ok) throw new Error(f.url + " " + r.status);
-      buf = await r.arrayBuffer();
-      FONT_BYTES[key] = buf;
-    }
-    const face = new FontFace(f.label, buf, { weight: String(f.weight || 400) });
-    await face.load();
-    document.fonts.add(face);
-    f._fontFaceLoaded = true;
-  } catch (e) {
-    console.warn("FontFace:", key, e);
-  }
-}
-
-async function loadAllFontFaces() {
-  const keys = Object.keys(FONTS);
-  let i = 0;
-  for (const key of keys) {
-    await loadFontFace(key);
-    i++;
-    progressSet((i / keys.length) * 40);
-  }
-}
-
-async function getFontBytes(key) {
-  const f = FONTS[key];
-  if (!f) throw new Error("Шрифт не найден: " + key);
-  if (f.builtin) return null;
-  if (FONT_BYTES[key]) return FONT_BYTES[key];
-  const r = await fetch(f.url);
-  if (!r.ok) throw new Error("Не удалось скачать " + f.url);
-  const buf = await r.arrayBuffer();
-  FONT_BYTES[key] = buf;
-  return buf;
-}
-
-function refreshFontSelects() {
-  const ids = ["pDateFont","pDateFontOther","pRoomFont","pRoomFontOther","pWdFont","pBarLine1Font","pBarLine2Font","pArtFont"];
-  ids.forEach(id => {
-    const sel = document.getElementById(id);
-    if (!sel) return;
-    const cur = sel.value;
-    sel.innerHTML = "";
-    Object.entries(FONTS).forEach(([key, f]) => {
-      const opt = document.createElement("option");
-      opt.value = key;
-      opt.textContent = f.label;
-      sel.appendChild(opt);
-    });
-    if (cur && FONTS[cur]) sel.value = cur;
-    else if (Object.keys(FONTS).length) sel.value = Object.keys(FONTS)[0];
-  });
-}
-
-function refreshFontList() {
-  const list = document.getElementById("fontList");
-  list.innerHTML = "";
-  Object.entries(FONTS).forEach(([key, f]) => {
-    const row = document.createElement("div");
-    row.className = "fontItem";
-    const name = document.createElement("span");
-    name.className = "name";
-    name.textContent = f.label + (f.builtin ? " (встроенный)" : " (файл)");
-    row.appendChild(name);
-    list.appendChild(row);
-  });
-}
-
-document.getElementById("btnFontAdd").addEventListener("click", () => {
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = ".ttf,font/ttf";
-  input.onchange = async () => {
-    const file = input.files[0];
-    if (!file) return;
-    const key = prompt("Ключ шрифта (латиницей):", file.name.replace(/\.ttf$/i,"").replace(/\s+/g,"_"));
-    if (!key) return;
-    FONT_BYTES[key] = await file.arrayBuffer();
-    FONTS[key] = { label: key, builtin: false, url: null, weight: 400 };
-    refreshFontSelects();
-    refreshFontList();
-    await loadFontFace(key);
-    log("Добавлен локальный шрифт: " + key);
-    renderFontSummary();
-    render();
-  };
-  input.click();
-});
-
-// ============================================================
-//  Изображения
-// ============================================================
-let images = [];
-let imgCounter = 1;
-
-function renderImagesList() {
-  const list = document.getElementById("imagesList");
-  list.innerHTML = "";
-  images.forEach(img => {
-    const card = document.createElement("div");
-    card.className = "imgCard";
-    card.innerHTML = `
-      <div class="imgHeader">
-        <span class="name">${img.name}</span>
-        <button class="mini secondary" data-act="del">✕</button>
-      </div>
-      <div class="field"><label>Файл (PNG/JPG)</label><input type="file" data-act="file" accept="image/*"></div>
-      <div class="field"><label>Имя</label><input type="text" data-act="name" value="${img.name}"></div>
-      <div class="field"><label>X (центр)</label><input type="number" data-act="x" value="${img.x}" step="0.5"><span class="unit">мм</span></div>
-      <div class="field"><label>Y (центр)</label><input type="number" data-act="y" value="${img.y}" step="0.5"><span class="unit">мм</span></div>
-      <div class="field"><label>Базовая ширина</label><input type="number" data-act="baseW" value="${img.baseW}" step="1"><span class="unit">мм</span></div>
-      <div class="field"><label>Масштаб</label><input type="number" data-act="scale" value="${img.scale}" step="0.05"><span class="unit">×</span></div>
-      <div class="field"><label>Прозрачность</label><input type="range" data-act="opacity" min="0" max="100" value="${clamp(img.opacity*100,0,100)}"><span data-act="opacityVal" style="width:34px;font-size:11px;color:#888;text-align:right">${Math.round(clamp(img.opacity*100,0,100))}%</span></div>
-      <div class="field"><label>Режим наложения</label>
-        <select data-act="blend">
-          ${["normal","multiply","screen","overlay","darken","lighten"].map(b =>
-            `<option value="${b}" ${img.blend===b?"selected":""}>${({normal:"Обычный",multiply:"Умножение",screen:"Экран",overlay:"Наложение",darken:"Затемнение",lighten:"Осветление"})[b]}</option>`
-          ).join("")}
-        </select>
-      </div>
-      <div class="field"><label>Яркость</label><input type="range" data-act="bright" min="-100" max="100" value="${img.bright}"><span data-act="brightVal" style="width:34px;font-size:11px;color:#888;text-align:right">${img.bright}</span></div>
-      <div class="field"><label>Контраст</label><input type="range" data-act="contrast" min="0" max="200" value="${img.contrast}"><span data-act="contrastVal" style="width:34px;font-size:11px;color:#888;text-align:right">${img.contrast}</span></div>
-      <div class="field"><label>Насыщенность</label><input type="range" data-act="sat" min="0" max="200" value="${img.sat}"><span data-act="satVal" style="width:34px;font-size:11px;color:#888;text-align:right">${img.sat}</span></div>
-      <div class="field"><label>Обрезать по плашке</label><input type="checkbox" data-act="clip" ${img.clip?"checked":""}></div>
-    `;
-    list.appendChild(card);
-
-    card.querySelector('[data-act="del"]').onclick = () => {
-      images = images.filter(i => i.id !== img.id);
-      renderImagesList(); render();
-    };
-    card.querySelector('[data-act="file"]').onchange = async e => {
-      const f = e.target.files[0]; if (!f) return;
-      const buf = await f.arrayBuffer();
-      img.dataUrl = arrayBufferToDataUrl(buf, f.type);
-      img.file = null;
-      render();
-    };
-    card.querySelector('[data-act="name"]').oninput = e => { img.name = e.target.value; };
-    const bindNum = (key, sub="") => {
-      card.querySelector(`[data-act="${key}"]`).oninput = e => {
-        let v = parseFloat(e.target.value);
-        if (key === "opacity") {
-          v = clamp(v, 0, 100);
-          e.target.value = v;
-          img.opacity = v / 100;
-        } else {
-          img[key] = v;
-        }
-        if (sub) card.querySelector(`[data-act="${sub}"]`).textContent =
-          (key === "opacity" ? Math.round(img.opacity*100) + "%" : img[key]);
-        if (autoUpdate) render();
-      };
-    };
-    bindNum("x"); bindNum("y"); bindNum("baseW"); bindNum("scale");
-    bindNum("opacity","opacityVal"); bindNum("bright","brightVal");
-    bindNum("contrast","contrastVal"); bindNum("sat","satVal");
-    card.querySelector('[data-act="blend"]').onchange = e => { img.blend = e.target.value; if (autoUpdate) render(); };
-    card.querySelector('[data-act="clip"]').onchange = e => { img.clip = e.target.checked; if (autoUpdate) render(); };
-  });
-}
-
-document.getElementById("btnAddImage").addEventListener("click", () => {
-  images.push({
-    id: "img" + (imgCounter++),
-    name: "Изображение " + imgCounter,
-    dataUrl: null, file: null,
-    x: 148, y: 22, scale: 1, baseW: 40,
-    opacity: 1, blend: "normal",
-    bright: 0, contrast: 100, sat: 100, clip: true,
-  });
-  renderImagesList();
-});
-
-async function resolveImage(imgCfg) {
-  if (imgCfg.dataUrl) return imgCfg.dataUrl;
-  if (!imgCfg.file) return null;
-  const url = IMAGES_URL + imgCfg.file;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error("Не найдено: " + url);
-  const buf = await resp.arrayBuffer();
-  return arrayBufferToDataUrl(buf, resp.headers.get("content-type") || "image/png");
-}
-
-async function preloadImages(imagesCfg) {
-  const out = [];
-  let i = 0;
-  for (const cfg of imagesCfg) {
-    try {
-      const dataUrl = await resolveImage(cfg);
-      out.push({ ...cfg, dataUrl });
-    } catch (e) {
-      log("Изображение не загружено: " + (cfg.file || cfg.name) + " — " + e.message, "err");
-      out.push({ ...cfg, dataUrl: null });
-    }
-    i++;
-    progressSet(40 + (i / imagesCfg.length) * 20);
-  }
-  return out;
-}
-
-// ============================================================
-//  Утилиты
-// ============================================================
-function arrayBufferToDataUrl(buf, mime) {
-  let binary = "";
-  const bytes = new Uint8Array(buf);
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return `data:${mime || "image/png"};base64,${btoa(binary)}`;
-}
-function dataUrlToUint8Array(dataUrl) {
-  const base64 = dataUrl.split(",")[1];
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-async function processImage(dataUrl, bright, contrast, sat) {
-  if (!dataUrl) return null;
-  if (bright === 0 && contrast === 100 && sat === 100) return dataUrl;
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d");
-      ctx.filter = `brightness(${100+bright}%) contrast(${contrast}%) saturate(${sat}%)`;
-      ctx.drawImage(img, 0, 0);
-      resolve(canvas.toDataURL("image/png"));
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
-}
-function getImageDimensions(dataUrl) {
-  return new Promise(resolve => {
-    if (!dataUrl) return resolve({ w: 1, h: 1 });
-    const img = new Image();
-    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-    img.onerror = () => resolve({ w: 1, h: 1 });
-    img.src = dataUrl;
-  });
-}
-
-// ============================================================
-//  Параметры
-// ============================================================
-function num(id) { return parseFloat(document.getElementById(id).value); }
-function str(id) { return document.getElementById(id).value; }
-function chk(id) { return document.getElementById(id).checked; }
-function color(id) {
-  const hex = document.getElementById(id).value.replace("#", "");
-  return {
-    r: parseInt(hex.substr(0,2), 16) / 255,
-    g: parseInt(hex.substr(2,2), 16) / 255,
-    b: parseInt(hex.substr(4,2), 16) / 255,
-  };
-}
-const fsv = id => num(id);
-const mmv = id => toPt(num(id));
-
-function readParams() {
-  return {
-    page: { w: mmv("pPageW"), h: mmv("pPageH"), scale: num("pScale") },
-    grid: {
-      rows: parseInt(str("pRows"), 10),
-      alwaysSix: chk("pAlwaysSix"),
-      topMargin: mmv("pTopMargin"), sideMargin: mmv("pSideMargin"),
-      colGap: mmv("pColGap"),
-      rowGap5: mmv("pRowGap5"), rowGap6: mmv("pRowGap6"),
-    },
-    date: {
-      h: mmv("pDateH"), size: fsv("pDateSize"),
-      font: str("pDateFont"),
-      fontOther: str("pDateFontOther"),
-      color: color("pDateColor"), colorOther: color("pDateColorOther"),
-      dx: mmv("pDateDX"), dy: mmv("pDateDY"),
-    },
-    room: {
-      h: mmv("pRoomH"), size: fsv("pRoomSize"),
-      font: str("pRoomFont"),
-      fontOther: str("pRoomFontOther"),
-      color: color("pRoomColor"), colorOther: color("pRoomColorOther"),
-      dx: mmv("pRoomDX"), dy: mmv("pRoomDY"),
-      template: str("pRoomTemplate"),
-      showFloor: chk("pRoomShowFloor"),
-      floor: parseInt(str("pRoomFloor"), 10) || 0,
-    },
-    bar: {
-      h: mmv("pBarH"), bg: color("pBarBg"),
-      line1: str("pBarLine1"), line1Font: str("pBarLine1Font"),
-      line1Size: fsv("pBarLine1Size"), line1Color: color("pBarLine1Color"),
-      line2: str("pBarLine2"), line2Font: str("pBarLine2Font"),
-      line2Size: fsv("pBarLine2Size"), line2Color: color("pBarLine2Color"),
-      dx: mmv("pBarDX"), dy: mmv("pBarDY"), lineGap: num("pBarLineGap"),
-      clip: chk("pBarClip"),
-    },
-    art: {
-      text: "t.me/ARTemaARTema",
-      font: str("pArtFont"),
-      size: fsv("pArtSize"), h: mmv("pArtH"),
-      right: mmv("pArtRight"), top: mmv("pArtTop"),
-      padX: mmv("pArtPadX"),
-      color: color("pArtColor"),
-      opacity: clamp(num("pArtOpacity"), 0, 100) / 100,
-    },
-    weekday: {
-      size: fsv("pWdSize"), font: str("pWdFont"),
-      form: str("pWdForm"), case: str("pWdCase"),
-      color: color("pWdColor"),
-      padLeft: mmv("pWdPadLeft"), y: mmv("pWdY"),
-    },
-    line: {
-      w: mmv("pLineW"), color: color("pLineColor"),
-      top: mmv("pLineTop"), bottom: mmv("pLineBottom"),
-      horiz: chk("pLineHoriz"),
-      horizW: mmv("pLineHorizW"),
-      horizPad: mmv("pLineHorizPad"),
-    },
-    test: {
-      monthFrom: str("tMonthFrom"), monthTo: str("tMonthTo"),
-      rooms: str("tRooms"), lastRoom: parseInt(str("tLastRoom"),10),
-      lastDate: str("tLastDate"),
-      order: str("tOrder"),
-      previewMonth: str("tPreviewMonth"),
-    },
-  };
-}
-
-function applyParams(P) {
-  const setNum = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
-  const setStr = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
-  const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
-  const setCol = (id, c) => {
-    if (!c) return;
-    const hex = "#" + [c.r,c.g,c.b].map(x => Math.round(x*255).toString(16).padStart(2,"0")).join("");
-    const el = document.getElementById(id); if (el) el.value = hex;
-  };
-
-  if (P.page) { setNum("pPageW", P.page.w); setNum("pPageH", P.page.h); setNum("pScale", P.page.scale); }
-  if (P.grid) {
-    setStr("pRows", String(P.grid.rows));
-    setChk("pAlwaysSix", P.grid.alwaysSix);
-    setNum("pTopMargin", P.grid.topMargin); setNum("pSideMargin", P.grid.sideMargin);
-    setNum("pColGap", P.grid.colGap);
-    setNum("pRowGap5", P.grid.rowGap5); setNum("pRowGap6", P.grid.rowGap6);
-  }
-  if (P.date) {
-    setNum("pDateH", P.date.h); setNum("pDateSize", P.date.size);
-    setStr("pDateFont", P.date.font);
-    setStr("pDateFontOther", P.date.fontOther || P.date.font);
-    setNum("pDateDX", P.date.dx); setNum("pDateDY", P.date.dy);
-    setCol("pDateColor", P.date.color); setCol("pDateColorOther", P.date.colorOther);
-  }
-  if (P.room) {
-    setNum("pRoomH", P.room.h); setNum("pRoomSize", P.room.size);
-    setStr("pRoomFont", P.room.font);
-    setStr("pRoomFontOther", P.room.fontOther || P.room.font);
-    setNum("pRoomDX", P.room.dx); setNum("pRoomDY", P.room.dy);
-    setStr("pRoomTemplate", P.room.template);
-    setChk("pRoomShowFloor", P.room.showFloor);
-    setNum("pRoomFloor", P.room.floor);
-    setCol("pRoomColor", P.room.color); setCol("pRoomColorOther", P.room.colorOther);
-  }
-  if (P.bar) {
-    setNum("pBarH", P.bar.h);
-    setStr("pBarLine1", P.bar.line1); setStr("pBarLine1Font", P.bar.line1Font);
-    setNum("pBarLine1Size", P.bar.line1Size); setCol("pBarLine1Color", P.bar.line1Color);
-    setStr("pBarLine2", P.bar.line2); setStr("pBarLine2Font", P.bar.line2Font);
-    setNum("pBarLine2Size", P.bar.line2Size); setCol("pBarLine2Color", P.bar.line2Color);
-    setNum("pBarDX", P.bar.dx); setNum("pBarDY", P.bar.dy); setNum("pBarLineGap", P.bar.lineGap);
-    setChk("pBarClip", P.bar.clip);
-    setCol("pBarBg", P.bar.bg);
-  }
-  if (P.art) {
-    setStr("pArtFont", P.art.font);
-    setNum("pArtSize", P.art.size); setNum("pArtH", P.art.h);
-    setNum("pArtRight", P.art.right); setNum("pArtTop", P.art.top);
-    setNum("pArtPadX", P.art.padX);
-    setCol("pArtColor", P.art.color);
-    const o = Number(P.art.opacity);
-    const opPct = (o > 1 ? o : o * 100);
-    setNum("pArtOpacity", clamp(opPct, 0, 100));
-  }
-  if (P.weekday) {
-    setNum("pWdSize", P.weekday.size); setStr("pWdFont", P.weekday.font);
-    setStr("pWdForm", P.weekday.form); setStr("pWdCase", P.weekday.case);
-    setCol("pWdColor", P.weekday.color);
-    setNum("pWdPadLeft", P.weekday.padLeft); setNum("pWdY", P.weekday.y);
-  }
-  if (P.line) {
-    setNum("pLineW", P.line.w); setCol("pLineColor", P.line.color);
-    setNum("pLineTop", P.line.top); setNum("pLineBottom", P.line.bottom);
-    setChk("pLineHoriz", P.line.horiz);
-    setNum("pLineHorizW", P.line.horizW);
-    setNum("pLineHorizPad", P.line.horizPad);
-  }
-  if (P.test) {
-    setStr("tMonthFrom", P.test.monthFrom || P.test.yearMonthFrom);
-    setStr("tMonthTo",   P.test.monthTo   || P.test.yearMonthTo);
-    setStr("tRooms", P.test.rooms);
-    setNum("tLastRoom", P.test.lastRoom);
-    setStr("tLastDate", P.test.lastDate);
-    setStr("tOrder", P.test.order || "forward");
-    setStr("tPreviewMonth", P.test.previewMonth || P.test.monthFrom || P.test.yearMonthFrom);
-  }
-  if (P.images && Array.isArray(P.images)) {
-    images = P.images.map((im, i) => ({
-      id: im.id || ("img" + (i+1)),
-      name: im.name || ("Изображение " + (i+1)),
-      dataUrl: im.dataUrl || null,
-      file: im.file || null,
-      x: im.x, y: im.y,
-      scale: im.scale ?? 1,
-      baseW: im.baseW ?? 40,
-      opacity: (() => {
-        let o = Number(im.opacity);
-        if (!isFinite(o)) return 1;
-        if (o > 1) o = o / 100;
-        return clamp(o, 0, 1);
-      })(),
-      blend: im.blend || "normal",
-      bright: im.bright ?? 0,
-      contrast: im.contrast ?? 100,
-      sat: im.sat ?? 100,
-      clip: im.clip !== false,
-    }));
-    renderImagesList();
-  }
-  const ao = document.getElementById("pArtOpacity");
-  const aol = document.getElementById("pArtOpacityVal");
-  if (ao && aol) {
-    ao.value = clamp(ao.value, 0, 100);
-    aol.textContent = Math.round(Number(ao.value)) + "%";
-  }
-  updateAlwaysSixLock();
-  applyAccentFromBar();
-  renderColorSummary();
-  renderFontSummary();
-}
-
-// ============================================================
-//  Блокировка «Строк на превью»
-// ============================================================
-function updateAlwaysSixLock() {
-  const always = chk("pAlwaysSix");
-  const sel = document.getElementById("pRows");
-  if (always) { sel.value = "6"; sel.disabled = true; }
-  else { sel.disabled = false; }
-}
-document.getElementById("pAlwaysSix").addEventListener("change", () => {
-  updateAlwaysSixLock();
-  if (autoUpdate) render();
-});
-
-// ============================================================
-//  Сводка по цветам и шрифтам
-// ============================================================
-// Карта: id поля → человекочитаемое имя
-const COLOR_FIELDS = [
-  { id: "pDateColor",        label: "Даты (основной)" },
-  { id: "pDateColorOther",   label: "Даты (доп.)" },
-  { id: "pRoomColor",        label: "Комнаты (основной)" },
-  { id: "pRoomColorOther",   label: "Комнаты (доп.)" },
-  { id: "pBarBg",            label: "Плашка: фон" },
-  { id: "pBarLine1Color",    label: "Плашка: строка 1" },
-  { id: "pBarLine2Color",    label: "Плашка: строка 2" },
-  { id: "pWdColor",          label: "Дни недели" },
-  { id: "pLineColor",        label: "Линии" },
-  { id: "pArtColor",         label: "ARTemaARTema" },
-];
-
-const FONT_FIELDS = [
-  { id: "pDateFont",       label: "Даты (основной)" },
-  { id: "pDateFontOther",  label: "Даты (доп.)" },
-  { id: "pRoomFont",       label: "Комнаты (основной)" },
-  { id: "pRoomFontOther",  label: "Комнаты (доп.)" },
-  { id: "pWdFont",         label: "Дни недели" },
-  { id: "pBarLine1Font",   label: "Плашка: строка 1" },
-  { id: "pBarLine2Font",   label: "Плашка: строка 2" },
-  { id: "pArtFont",        label: "ARTemaARTema" },
-];
-
-function renderColorSummary() {
-  const wrap = document.getElementById("colorSummary");
-  if (!wrap) return;
-
-  // Группируем поля по значению цвета
-  const groups = new Map(); // hex -> [{id, label}]
-  for (const f of COLOR_FIELDS) {
-    const el = document.getElementById(f.id);
-    if (!el) continue;
-    const hex = (el.value || "").toLowerCase();
-    if (!groups.has(hex)) groups.set(hex, []);
-    groups.get(hex).push(f);
-  }
-
-  wrap.innerHTML = "";
-  for (const [hex, fields] of groups.entries()) {
-    const row = document.createElement("div");
-    row.className = "summaryRow";
-
-    const colorInput = document.createElement("input");
-    colorInput.type = "color";
-    colorInput.value = hex;
-    colorInput.dataset.groupHex = hex;
-
-    const usage = document.createElement("div");
-    usage.className = "usage";
-    usage.innerHTML = fields.map(f => `<b>${f.label}</b>`).join(", ");
-
-    const cnt = document.createElement("span");
-    cnt.className = "cnt";
-    cnt.textContent = "×" + fields.length;
-
-    colorInput.addEventListener("input", () => {
-      const newHex = colorInput.value;
-      for (const f of fields) {
-        const el = document.getElementById(f.id);
-        if (el) el.value = newHex;
-      }
-      // Обновляем акцент, если плашка поменялась
-      if (fields.some(f => f.id === "pBarBg")) applyAccentFromBar();
-      renderColorSummary();
-      if (autoUpdate) render();
-    });
-
-    row.appendChild(colorInput);
-    row.appendChild(usage);
-    row.appendChild(cnt);
-    wrap.appendChild(row);
-  }
-}
-
-function renderFontSummary() {
-  const wrap = document.getElementById("fontSummary");
-  if (!wrap) return;
-
-  const groups = new Map(); // key -> [{id, label}]
-  for (const f of FONT_FIELDS) {
-    const el = document.getElementById(f.id);
-    if (!el) continue;
-    const key = el.value || "";
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(f);
-  }
-
-  wrap.innerHTML = "";
-  for (const [key, fields] of groups.entries()) {
-    const row = document.createElement("div");
-    row.className = "summaryRow";
-
-    const sel = document.createElement("select");
-    Object.entries(FONTS).forEach(([k, f]) => {
-      const opt = document.createElement("option");
-      opt.value = k;
-      opt.textContent = f.label;
-      if (k === key) opt.selected = true;
-      sel.appendChild(opt);
-    });
-    // Если ключ не найден — добавим как есть
-    if (!FONTS[key] && key) {
-      const opt = document.createElement("option");
-      opt.value = key;
-      opt.textContent = key + " (нет в манифесте)";
-      opt.selected = true;
-      sel.appendChild(opt);
-    }
-
-    const usage = document.createElement("div");
-    usage.className = "usage";
-    usage.innerHTML = fields.map(f => `<b>${f.label}</b>`).join(", ");
-
-    const cnt = document.createElement("span");
-    cnt.className = "cnt";
-    cnt.textContent = "×" + fields.length;
-
-    sel.addEventListener("change", () => {
-      const newKey = sel.value;
-      for (const f of fields) {
-        const el = document.getElementById(f.id);
-        if (el) el.value = newKey;
-      }
-      renderFontSummary();
-      if (autoUpdate) render();
-    });
-
-    row.appendChild(sel);
-    row.appendChild(usage);
-    row.appendChild(cnt);
-    wrap.appendChild(row);
-  }
-}
-
-// ============================================================
-//  Расписание
-// ============================================================
-function parseRooms(str) {
-  const rooms = [];
-  str.split(",").forEach(part => {
-    part = part.trim(); if (!part) return;
-    const m = part.match(/^(\d+)\s*-\s*(\d+)$/);
-    if (m) {
-      const a = +m[1], b = +m[2];
-      if (a <= b) for (let i = a; i <= b; i++) rooms.push(i);
-      else        for (let i = a; i >= b; i--) rooms.push(i);
-    } else if (/^\d+$/.test(part)) rooms.push(+part);
-  });
-  return rooms;
-}
-function buildFullSchedule(rooms, lastRoom, lastDate, startDate, endDate, order) {
-  const schedule = new Map();
-  let idx = rooms.indexOf(lastRoom); if (idx === -1) idx = 0;
-  const step = order === "backward" ? -1 : 1;
-  const norm = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  let cursor = norm(lastDate); cursor.setDate(cursor.getDate() + 1);
-  if (cursor < startDate) cursor = new Date(startDate);
-  while (cursor <= endDate) {
-    idx = ((idx + step) % rooms.length + rooms.length) % rooms.length;
-    const key = cursor.getFullYear() + "-" +
-                String(cursor.getMonth()+1).padStart(2,"0") + "-" +
-                String(cursor.getDate()).padStart(2,"0");
-    schedule.set(key, rooms[idx]);
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return schedule;
-}
-function formatRoom(room, cfg, allRooms) {
-  let num = String(room);
-  if (cfg.showFloor) {
-    const maxLen = String(Math.max(...allRooms)).length;
-    num = num.padStart(maxLen, "0");
-    num = String(cfg.floor) + num;
-  }
-  return cfg.template.replace(/НОМЕР/g, num);
-}
-
-// ============================================================
-//  Превью
-// ============================================================
-const MONTHS_RU = ["ЯНВАРЬ","ФЕВРАЛЬ","МАРТ","АПРЕЛЬ","МАЙ","ИЮНЬ",
-                   "ИЮЛЬ","АВГУСТ","СЕНТЯБРЬ","ОКТЯБРЬ","НОЯБРЬ","ДЕКАБРЬ"];
-const WEEKDAYS_FULL = ["Понедельник","Вторник","Среда","Четверг","Пятница","Суббота","Воскресенье"];
-const WEEKDAYS_SHORT = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
-
-function applyCase(str, mode) {
-  if (mode === "upper") return str.toUpperCase();
-  if (mode === "lower") return str.toLowerCase();
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-}
-function getWeekdayLabel(idx, form, caseMode) {
-  return applyCase(form === "full" ? WEEKDAYS_FULL[idx] : WEEKDAYS_SHORT[idx], caseMode);
-}
-function rgbCss(c) {
-  return `rgb(${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)})`;
-}
-function fontFamilyCss(name) {
-  const f = FONTS[name];
-  if (!f) return "Arial, sans-serif";
-  if (f.builtin) {
-    if (name === "helvetica") return "Helvetica, Arial, sans-serif";
-    if (name === "times") return "'Times New Roman', Times, serif";
-    if (name === "courier") return "'Courier New', Courier, monospace";
-  }
-  return `'${f.label}', Arial, sans-serif`;
-}
-function svgBlendMode(name) {
-  return ["multiply","screen","overlay","darken","lighten"].includes(name) ? name : "normal";
-}
-
-function buildSvgForMonth(P, year, month, scale, processedImages) {
-  const PAGE_W = P.page.w, PAGE_H = P.page.h;
-  const COLS = 7;
-  const CELL_H = P.date.h + P.room.h;
-  const totalGapW = P.grid.colGap * (COLS - 1);
-  const CELL_W = (PAGE_W - P.grid.sideMargin * 2 - totalGapW) / COLS;
-  const GRID_TOP = PAGE_H - P.grid.topMargin;
-
-  const firstDay = new Date(year, month, 1);
-  const startCol = (firstDay.getDay() + 6) % 7;
-  const gridStart = new Date(year, month, 1 - startCol);
-
-  let ROWS = P.grid.alwaysSix ? 6 : parseInt(document.getElementById("pRows").value, 10);
-  const rowGap = ROWS === 5 ? P.grid.rowGap5 : P.grid.rowGap6;
-
-  const rooms = parseRooms(P.test.rooms);
-  const schedule = buildFullSchedule(
-    rooms, P.test.lastRoom,
-    new Date(P.test.lastDate + "T00:00:00"),
-    new Date(year, month - 2, 1),
-    new Date(year, month + 3, 0),
-    P.test.order
-  );
-
-  const svgW = PAGE_W * scale, svgH = PAGE_H * scale;
-  const X = x => x * scale;
-  const Y = y => (PAGE_H - y) * scale;
-
-  const parts = [];
-  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">`);
-  parts.push(`<defs><clipPath id="barClip"><rect x="0" y="${Y(P.bar.h)}" width="${svgW}" height="${P.bar.h*scale}"/></clipPath></defs>`);
-  parts.push(`<rect x="0" y="0" width="${svgW}" height="${svgH}" fill="#ffffff"/>`);
-  parts.push(`<rect x="0" y="${Y(P.bar.h)}" width="${svgW}" height="${P.bar.h*scale}" fill="${rgbCss(P.bar.bg)}"/>`);
-
-  for (const im of processedImages) {
-    const w = im.baseW * im.scale;
-    const h = w * (im._dim.h / im._dim.w);
-    const clipAttr = (P.bar.clip && im.clip) ? `clip-path="url(#barClip)"` : "";
-    parts.push(`<g ${clipAttr} style="mix-blend-mode:${svgBlendMode(im.blend)}">`);
-    parts.push(`<image class="draggable" data-img="${im.id}" opacity="${im.opacity}" x="${X(im.x - w/2)}" y="${Y(im.y + h/2)}" width="${w*scale}" height="${h*scale}" xlink:href="${im._dataUrl}" preserveAspectRatio="none" style="cursor:move"/>`);
-    parts.push(`</g>`);
-  }
-
-  const lineGapPx = P.bar.line1Size * P.bar.lineGap;
-  const midY = P.bar.h / 2 + P.bar.dy;
-  const y1 = midY + lineGapPx / 2;
-  const y2 = midY - lineGapPx / 2;
-
-  parts.push(`<text x="${X(P.bar.dx)}" y="${Y(y1)}" font-family="${fontFamilyCss(P.bar.line1Font)}" font-size="${P.bar.line1Size*scale}" font-weight="600" fill="${rgbCss(P.bar.line1Color)}" dominant-baseline="middle">${P.bar.line1}</text>`);
-  const line2Text = P.bar.line2.replace(/МЕСЯЦ/g, MONTHS_RU[month]).replace(/ГОД/g, year);
-  parts.push(`<text x="${X(P.bar.dx)}" y="${Y(y2)}" font-family="${fontFamilyCss(P.bar.line2Font)}" font-size="${P.bar.line2Size*scale}" font-weight="600" fill="${rgbCss(P.bar.line2Color)}" dominant-baseline="middle">${line2Text}</text>`);
-
-  for (let i = 0; i < ROWS * COLS; i++) {
-    const cellDate = new Date(gridStart);
-    cellDate.setDate(gridStart.getDate() + i);
-    const r = Math.floor(i / COLS), c = i % COLS;
-    const isCurrent = cellDate.getMonth() === month;
-    const x0 = P.grid.sideMargin + c * (CELL_W + P.grid.colGap);
-    const yTopDate = GRID_TOP - r * (CELL_H + rowGap);
-    const yTopRoom = yTopDate - P.date.h;
-
-    const dateStr = String(cellDate.getDate());
-    const dateSize = P.date.size;
-    const dateColor = isCurrent ? P.date.color : P.date.colorOther;
-    const dateFontKey = isCurrent ? P.date.font : (P.date.fontOther || P.date.font);
-    const dateX = x0 + CELL_W / 2 + P.date.dx;
-    const dateY = yTopDate - P.date.h / 2 + P.date.dy;
-    parts.push(`<text x="${X(dateX)}" y="${Y(dateY)}" font-family="${fontFamilyCss(dateFontKey)}" font-size="${dateSize*scale}" font-weight="${isCurrent ? 500 : 300}" fill="${rgbCss(dateColor)}" text-anchor="middle" dominant-baseline="middle">${dateStr}</text>`);
-
-    const key = cellDate.getFullYear() + "-" +
-                String(cellDate.getMonth()+1).padStart(2,"0") + "-" +
-                String(cellDate.getDate()).padStart(2,"0");
-    const room = schedule.get(key);
-    if (room !== undefined) {
-      const roomStr = formatRoom(room, P.room, rooms);
-      const roomSize = P.room.size;
-      const roomColor = isCurrent ? P.room.color : P.room.colorOther;
-      const roomFontKey = isCurrent ? P.room.font : (P.room.fontOther || P.room.font);
-      const roomX = x0 + CELL_W / 2 + P.room.dx;
-      const roomY = yTopRoom + P.room.h / 2 + P.room.dy;
-      parts.push(`<text x="${X(roomX)}" y="${Y(roomY)}" font-family="${fontFamilyCss(roomFontKey)}" font-size="${roomSize*scale}" font-weight="${isCurrent ? 600 : 300}" fill="${rgbCss(roomColor)}" text-anchor="middle" dominant-baseline="middle">${roomStr}</text>`);
-    }
-  }
-
-  for (let c = 0; c < COLS; c++) {
-    const x0 = P.grid.sideMargin + c * (CELL_W + P.grid.colGap);
-    const wdX = x0 + P.weekday.padLeft;
-    const wdY = P.weekday.y;
-    const label = getWeekdayLabel(c, P.weekday.form, P.weekday.case);
-    parts.push(`<text x="${X(wdX)}" y="${Y(wdY)}" font-family="${fontFamilyCss(P.weekday.font)}" font-size="${P.weekday.size*scale}" font-weight="400" fill="${rgbCss(P.weekday.color)}">${label}</text>`);
-  }
-
-  for (let c = 1; c < COLS; c++) {
-    const xLine = P.grid.sideMargin + c * (CELL_W + P.grid.colGap) - P.grid.colGap / 2;
-    parts.push(`<line x1="${X(xLine)}" y1="${Y(PAGE_H - P.line.top)}" x2="${X(xLine)}" y2="${Y(PAGE_H - P.line.bottom)}" stroke="${rgbCss(P.line.color)}" stroke-width="${P.line.w * scale}"/>`);
-  }
-
-  if (P.line.horiz) {
-    for (let r = 1; r < ROWS; r++) {
-      const yMid = GRID_TOP - r * CELL_H - (r - 1) * rowGap - rowGap / 2;
-      parts.push(`<line x1="${X(P.grid.sideMargin + P.line.horizPad)}" y1="${Y(yMid)}" x2="${X(PAGE_W - P.grid.sideMargin - P.line.horizPad)}" y2="${Y(yMid)}" stroke="${rgbCss(P.line.color)}" stroke-width="${P.line.horizW * scale}"/>`);
-    }
-  }
-
-  const artTextW = P.art.size * 0.55 * P.art.text.length;
-  const artW = artTextW + P.art.padX * 2;
-  const artX = PAGE_W - artW - P.art.right;
-  const artY = PAGE_H - P.art.h - P.art.top;
-  parts.push(`<text x="${X(artX + P.art.padX)}" y="${Y(artY + P.art.h/2)}" font-family="${fontFamilyCss(P.art.font)}" font-size="${P.art.size*scale}" font-weight="600" fill="${rgbCss(P.art.color)}" opacity="${P.art.opacity}" dominant-baseline="middle">${P.art.text}</text>`);
-
-  parts.push(`</svg>`);
-  return parts.join("");
-}
-
-async function render() {
-  clearLog();
-  updateAlwaysSixLock();
-  previewLoader(true);
-  progressStart();
-  try {
-    const P = readParams();
-    const { monthFrom, rooms: roomsStr, lastRoom, lastDate, order, previewMonth } = P.test;
-
-    let previewY, previewM;
-    if (previewMonth) {
-      const [y, m] = previewMonth.split("-").map(Number);
-      previewY = y; previewM = m - 1;
-    } else {
-      const [y, m] = monthFrom.split("-").map(Number);
-      previewY = y; previewM = m - 1;
-    }
-    const year = previewY, month = previewM;
-
-    const rooms = parseRooms(roomsStr);
-    if (!rooms.length) { log("Нет комнат", "err"); return; }
-
-    const processedImages = [];
-    for (const im of images) {
-      if (!im.dataUrl) continue;
-      const dataUrl = await processImage(im.dataUrl, im.bright, im.contrast, im.sat);
-      const dim = await getImageDimensions(im.dataUrl);
-      processedImages.push({ ...im, _dataUrl: dataUrl, _dim: dim });
-    }
-    progressSet(60);
-
-    const svgStr = buildSvgForMonth(P, year, month, P.page.scale, processedImages);
-    document.getElementById("preview").innerHTML = svgStr;
-    setupDragAndDrop();
-    setupWheelZoom();
-    log(`Превью: ${MONTHS_RU[month]} ${year}`);
-    progressDone();
-  } catch (e) {
-    console.error(e);
-    log("Ошибка рендера: " + e.message, "err");
-    progressDone();
-  } finally {
-    previewLoader(false);
-  }
-}
-
-// ============================================================
-//  Drag & drop
-// ============================================================
-function setupDragAndDrop() {
-  const svg = document.querySelector("#preview svg"); if (!svg) return;
-  svg.querySelectorAll("image.draggable").forEach(node => {
-    node.addEventListener("mousedown", e => {
-      e.preventDefault();
-      const id = node.getAttribute("data-img");
-      const img = images.find(i => i.id === id); if (!img) return;
-      const P = readParams();
-      const startX = e.clientX, startY = e.clientY;
-      const startImgX = img.x, startImgY = img.y;
-      function onMove(ev) {
-        img.x = startImgX + toMm((ev.clientX - startX) / P.page.scale);
-        img.y = startImgY - toMm((ev.clientY - startY) / P.page.scale);
-        if (autoUpdate) render();
-        document.querySelectorAll("#imagesList .imgCard").forEach(c => {
-          const nameInput = c.querySelector('[data-act="name"]');
-          if (nameInput && nameInput.value === img.name) {
-            c.querySelector('[data-act="x"]').value = img.x.toFixed(1);
-            c.querySelector('[data-act="y"]').value = img.y.toFixed(1);
-          }
-        });
-      }
-      function onUp() {
-        document.removeEventListener("mousemove", onMove);
-        document.removeEventListener("mouseup", onUp);
-      }
-      document.addEventListener("mousemove", onMove);
-      document.addEventListener("mouseup", onUp);
-    });
-  });
-}
-function setupWheelZoom() {
-  document.getElementById("previewWrap").onwheel = (e) => {
-    if (!e.ctrlKey && !e.metaKey) return;
-    e.preventDefault();
-    const cur = parseFloat(document.getElementById("pScale").value);
-    const next = Math.max(0.1, Math.min(5, cur + (e.deltaY > 0 ? -0.05 : 0.05)));
-    document.getElementById("pScale").value = next.toFixed(2);
-    render();
-  };
-}
-
-// ============================================================
-//  Экспорт PDF
-// ============================================================
-async function exportPdf() {
-  clearLog();
-  progressStart();
-  overlayShow("Готовим PDF…", "Загрузка шрифтов");
-  try {
-    const P = readParams();
-    const rooms = parseRooms(P.test.rooms);
-    if (!rooms.length) { log("Нет комнат", "err"); return; }
-
-    const { monthFrom, monthTo, lastRoom, lastDate, order } = P.test;
-    const [fromY, fromM] = monthFrom.split("-").map(Number);
-    const [toY, toM]     = monthTo.split("-").map(Number);
-    const fromIdx = fromY * 12 + (fromM - 1);
-    const toIdx   = toY   * 12 + (toM   - 1);
-    if (fromIdx > toIdx) { log("Месяц «с» больше, чем месяц «по»", "err"); return; }
-
-    const { PDFDocument, rgb } = PDFLib;
-    const doc = await PDFDocument.create();
-    doc.registerFontkit(fontkit);
-
-    const fontCache = {};
-    async function getFont(name) {
-      if (fontCache[name]) return fontCache[name];
-      let font;
-      if (name === "helvetica") font = await doc.embedFont("Helvetica");
-      else if (name === "times") font = await doc.embedFont("Times-Roman");
-      else if (name === "courier") font = await doc.embedFont("Courier");
-      else font = await doc.embedFont(await getFontBytes(name), { subset: true });
-      fontCache[name] = font;
-      return font;
-    }
-
-    const fontDate       = await getFont(P.date.font);
-    const fontDateOther  = await getFont(P.date.fontOther || P.date.font);
-    const fontRoom       = await getFont(P.room.font);
-    const fontRoomOther  = await getFont(P.room.fontOther || P.room.font);
-    const fontWd         = await getFont(P.weekday.font);
-    const fontBarLine1   = await getFont(P.bar.line1Font);
-    const fontBarLine2   = await getFont(P.bar.line2Font);
-    const fontArt        = await getFont(P.art.font);
-
-    progressSet(20);
-
-    const PAGE_W = P.page.w, PAGE_H = P.page.h;
-    const COLS = 7;
-    const totalGapW = P.grid.colGap * (COLS - 1);
-    const CELL_W = (PAGE_W - P.grid.sideMargin * 2 - totalGapW) / COLS;
-    const GRID_TOP = PAGE_H - P.grid.topMargin;
-
-    const schedStart = new Date(fromY, fromM - 3, 1);
-    const schedEnd   = new Date(toY, toM + 2, 0);
-    const schedule = buildFullSchedule(rooms, lastRoom, new Date(lastDate + "T00:00:00"), schedStart, schedEnd, order);
-
-    const pdfImages = [];
-    for (const im of images) {
-      if (!im.dataUrl) continue;
-      const dataUrl = await processImage(im.dataUrl, im.bright, im.contrast, im.sat);
-      const pngBytes = dataUrlToUint8Array(dataUrl);
-      const img = await doc.embedPng(pngBytes);
-      const dim = await getImageDimensions(im.dataUrl);
-      pdfImages.push({ cfg: im, img, dim });
-    }
-
-    const totalPages = toIdx - fromIdx + 1;
-    let pageDone = 0;
-
-    for (let idx = fromIdx; idx <= toIdx; idx++) {
-      const year  = Math.floor(idx / 12);
-      const month = idx % 12;
-
-      const firstDay = new Date(year, month, 1);
-      const startCol = (firstDay.getDay() + 6) % 7;
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      let ROWS = P.grid.alwaysSix ? 6 : Math.ceil((startCol + daysInMonth) / 7);
-      const rowGap = ROWS === 5 ? P.grid.rowGap5 : P.grid.rowGap6;
-      const CELL_H = P.date.h + P.room.h;
-      const gridStart = new Date(year, month, 1 - startCol);
-
-      const page = doc.addPage([PAGE_W, PAGE_H]);
-      page.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: P.bar.h, color: rgb(P.bar.bg.r, P.bar.bg.g, P.bar.bg.b) });
-
-      const { pushGraphicsState, popGraphicsState, moveTo, lineTo, closePath, clip, endPath } = PDFLib;
-      const doClip = P.bar.clip;
-      for (const { cfg, img, dim } of pdfImages) {
-        if (doClip && cfg.clip) {
-          page.pushOperators(
-            pushGraphicsState(),
-            moveTo(0, 0), lineTo(PAGE_W, 0),
-            lineTo(PAGE_W, P.bar.h), lineTo(0, P.bar.h),
-            closePath(), clip(), endPath()
-          );
-        }
-        const w = cfg.baseW * cfg.scale;
-        const h = w * (dim.h / dim.w);
-        page.drawImage(img, { x: cfg.x - w/2, y: cfg.y - h/2, width: w, height: h, opacity: cfg.opacity });
-        if (doClip && cfg.clip) page.pushOperators(popGraphicsState());
-      }
-
-      const lineGapPx = P.bar.line1Size * P.bar.lineGap;
-      const midY = P.bar.h / 2 + P.bar.dy;
-      const y1 = midY + lineGapPx / 2;
-      const y2 = midY - lineGapPx / 2;
-      page.drawText(P.bar.line1, {
-        x: P.bar.dx, y: y1 - P.bar.line1Size * 0.35,
-        size: P.bar.line1Size, font: fontBarLine1,
-        color: rgb(P.bar.line1Color.r, P.bar.line1Color.g, P.bar.line1Color.b),
-      });
-      const line2Text = P.bar.line2.replace(/МЕСЯЦ/g, MONTHS_RU[month]).replace(/ГОД/g, String(year));
-      page.drawText(line2Text, {
-        x: P.bar.dx, y: y2 - P.bar.line2Size * 0.35,
-        size: P.bar.line2Size, font: fontBarLine2,
-        color: rgb(P.bar.line2Color.r, P.bar.line2Color.g, P.bar.line2Color.b),
-      });
-
-      for (let i = 0; i < ROWS * COLS; i++) {
-        const cellDate = new Date(gridStart); cellDate.setDate(gridStart.getDate() + i);
-        const r = Math.floor(i / COLS), c = i % COLS;
-        const isCurrent = cellDate.getMonth() === month;
-        const x0 = P.grid.sideMargin + c * (CELL_W + P.grid.colGap);
-        const yTopDate = GRID_TOP - r * (CELL_H + rowGap);
-        const yTopRoom = yTopDate - P.date.h;
-
-        const dateStr = String(cellDate.getDate());
-        const dateSize = P.date.size;
-        const dateColor = isCurrent ? P.date.color : P.date.colorOther;
-        const dateFont = isCurrent ? fontDate : fontDateOther;
-        const dateW = dateFont.widthOfTextAtSize(dateStr, dateSize);
-        page.drawText(dateStr, {
-          x: x0 + CELL_W/2 - dateW/2 + P.date.dx,
-          y: yTopDate - P.date.h/2 + P.date.dy - dateSize * 0.35,
-          size: dateSize, font: dateFont,
-          color: rgb(dateColor.r, dateColor.g, dateColor.b),
-        });
-
-        const key = cellDate.getFullYear() + "-" +
-                    String(cellDate.getMonth()+1).padStart(2,"0") + "-" +
-                    String(cellDate.getDate()).padStart(2,"0");
-        const room = schedule.get(key);
-        if (room !== undefined) {
-          const roomStr = formatRoom(room, P.room, rooms);
-          const roomSize = P.room.size;
-          const roomColor = isCurrent ? P.room.color : P.room.colorOther;
-          const roomFont = isCurrent ? fontRoom : fontRoomOther;
-          const roomW = roomFont.widthOfTextAtSize(roomStr, roomSize);
-          page.drawText(roomStr, {
-            x: x0 + CELL_W/2 - roomW/2 + P.room.dx,
-            y: yTopRoom + P.room.h/2 + P.room.dy - roomSize * 0.35,
-            size: roomSize, font: roomFont,
-            color: rgb(roomColor.r, roomColor.g, roomColor.b),
-          });
-        }
-      }
-
-      for (let c = 0; c < COLS; c++) {
-        const x0 = P.grid.sideMargin + c * (CELL_W + P.grid.colGap);
-        const label = getWeekdayLabel(c, P.weekday.form, P.weekday.case);
-        page.drawText(label, {
-          x: x0 + P.weekday.padLeft, y: P.weekday.y,
-          size: P.weekday.size, font: fontWd,
-          color: rgb(P.weekday.color.r, P.weekday.color.g, P.weekday.color.b),
-        });
-      }
-
-      for (let c = 1; c < COLS; c++) {
-        const xLine = P.grid.sideMargin + c * (CELL_W + P.grid.colGap) - P.grid.colGap / 2;
-        page.drawLine({
-          start: { x: xLine, y: PAGE_H - P.line.bottom },
-          end:   { x: xLine, y: PAGE_H - P.line.top },
-          thickness: P.line.w,
-          color: rgb(P.line.color.r, P.line.color.g, P.line.color.b),
-        });
-      }
-
-      if (P.line.horiz) {
-        for (let r = 1; r < ROWS; r++) {
-          const yMid = GRID_TOP - r * CELL_H - (r - 1) * rowGap - rowGap / 2;
-          page.drawLine({
-            start: { x: P.grid.sideMargin + P.line.horizPad, y: yMid },
-            end:   { x: PAGE_W - P.grid.sideMargin - P.line.horizPad, y: yMid },
-            thickness: P.line.horizW,
-            color: rgb(P.line.color.r, P.line.color.g, P.line.color.b),
-          });
-        }
-      }
-
-      const artTextW = fontArt.widthOfTextAtSize(P.art.text, P.art.size);
-      const artW = artTextW + P.art.padX * 2;
-      const artX = PAGE_W - artW - P.art.right;
-      const artY = PAGE_H - P.art.h - P.art.top;
-      page.drawText(P.art.text, {
-        x: artX + P.art.padX, y: artY + P.art.h/2 - P.art.size * 0.35,
-        size: P.art.size, font: fontArt,
-        color: rgb(P.art.color.r, P.art.color.g, P.art.color.b),
-        opacity: P.art.opacity,
-      });
-
-      pageDone++;
-      progressSet(20 + (pageDone / totalPages) * 75);
-      overlayShow("Готовим PDF…", `${MONTHS_RU[month]} ${year} (${pageDone} из ${totalPages})`);
-      log(`Страница ${MONTHS_RU[month]} ${year}`);
-    }
-
-    const bytes = await doc.save();
-    const blob = new Blob([bytes], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `ГрафикДежурств.pdf`; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    log("PDF сохранён", "ok");
-    overlayShow("Готово", "PDF сохранён");
-    setTimeout(overlayHide, 600);
-  } catch (e) {
-    console.error(e);
-    overlayHide();
-    log("Ошибка PDF: " + e.message, "err");
-  } finally {
-    progressDone();
-  }
-}
-
-// ============================================================
-//  Экспорт PNG
-// ============================================================
-async function exportPng(scaleFactor) {
-  clearLog();
-  progressStart();
-  overlayShow("Готовим PNG…", "Подготовка данных");
-  try {
-    const P = readParams();
-    const rooms = parseRooms(P.test.rooms);
-    if (!rooms.length) { log("Нет комнат", "err"); return; }
-
-    const [fromY, fromM] = P.test.monthFrom.split("-").map(Number);
-    const [toY, toM]     = P.test.monthTo.split("-").map(Number);
-    const fromIdx = fromY * 12 + (fromM - 1);
-    const toIdx   = toY   * 12 + (toM   - 1);
-    if (fromIdx > toIdx) { log("Месяц «с» больше, чем месяц «по»", "err"); return; }
-
-    const processedImages = [];
-    for (const im of images) {
-      if (!im.dataUrl) continue;
-      const dataUrl = await processImage(im.dataUrl, im.bright, im.contrast, im.sat);
-      const dim = await getImageDimensions(im.dataUrl);
-      processedImages.push({ ...im, _dataUrl: dataUrl, _dim: dim });
-    }
-    progressSet(20);
-
-    const total = toIdx - fromIdx + 1;
-    let done = 0;
-
-    const pxPerMm = 96 / 25.4;
-    const pxW = Math.round(P.page.w / MM * pxPerMm * scaleFactor);
-    const pxH = Math.round(P.page.h / MM * pxPerMm * scaleFactor);
-
-    for (let idx = fromIdx; idx <= toIdx; idx++) {
-      const year  = Math.floor(idx / 12);
-      const month = idx % 12;
-      const mm = String(month + 1).padStart(2, "0");
-      const fileName = `ГрафикДежурств_${year}-${mm}_${scaleFactor}x.png`;
-
-      overlayShow("Готовим PNG…", `${MONTHS_RU[month]} ${year} (${done + 1} из ${total})`);
-
-      const svgStr = buildSvgForMonth(P, year, month, 1, processedImages);
-      const blob = await svgStringToPngBlob(svgStr, pxW, pxH);
-      await downloadBlob(blob, fileName);
-
-      done++;
-      progressSet(20 + (done / total) * 75);
-      log(`PNG сохранён: ${fileName}`);
-    }
-
-    overlayShow("Готово", `Сохранено ${total} PNG`);
-    setTimeout(overlayHide, 700);
-  } catch (e) {
-    console.error(e);
-    overlayHide();
-    log("Ошибка PNG: " + e.message, "err");
-  } finally {
-    progressDone();
-  }
-}
-
-function svgStringToPngBlob(svgStr, pxW, pxH) {
-  return new Promise((resolve, reject) => {
-    const dataUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgStr);
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = pxW;
-        canvas.height = pxH;
-        const ctx = canvas.getContext("2d");
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, pxW, pxH);
-        ctx.drawImage(img, 0, 0, pxW, pxH);
-        canvas.toBlob(b => {
-          if (b) resolve(b);
-          else reject(new Error("canvas.toBlob вернул null"));
-        }, "image/png");
-      } catch (e) { reject(e); }
-    };
-    img.onerror = () => reject(new Error("Не удалось загрузить SVG в Image"));
-    img.src = dataUrl;
-  });
-}
-
-function downloadBlob(blob, filename) {
-  return new Promise(resolve => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-      a.remove();
-      resolve();
-    }, 300);
-  });
-}
-
-// ============================================================
-//  Загрузка шаблонов
-// ============================================================
-let savedTemplates = {};
-
-async function loadTemplatesManifest() {
-  const url = TEMPLATES_URL + "index.json";
-  const resp = await fetch(url, { cache: "no-cache" });
-  if (!resp.ok) throw new Error("Не удалось загрузить " + url + " (" + resp.status + ")");
-  const data = await resp.json();
-
-  const sel = document.getElementById("tplSelect");
-  sel.innerHTML = '<option value="">— выбрать —</option>';
-
-  for (const t of (data.templates || [])) {
-    try {
-      const r = await fetch(TEMPLATES_URL + t.file, { cache: "no-cache" });
-      if (!r.ok) throw new Error(r.status);
-      const json = await r.json();
-      savedTemplates[t.id] = { label: t.label, data: json };
-      const opt = document.createElement("option");
-      opt.value = t.id; opt.textContent = t.label;
-      sel.appendChild(opt);
-    } catch (e) {
-      console.warn("Шаблон не загружен:", t.id, e);
-    }
-  }
-}
-
-async function applyTemplateById(id) {
-  const tpl = savedTemplates[id];
-  if (!tpl) return;
-
-  applyParams(tpl.data);
-
-  if (Array.isArray(tpl.data.images)) {
-    const resolved = await preloadImages(tpl.data.images);
-    images = resolved;
-    renderImagesList();
-  }
-
-  const usedFonts = new Set();
-  const collectFont = obj => {
-    if (!obj || typeof obj !== "object") return;
-    for (const k in obj) {
-      if (/font/i.test(k) && typeof obj[k] === "string") usedFonts.add(obj[k]);
-      if (typeof obj[k] === "object") collectFont(obj[k]);
-    }
-  };
-  collectFont(tpl.data);
-  for (const f of usedFonts) await loadFontFace(f);
-
-  log("Шаблон применён: " + tpl.label);
-  render();
-}
-
-document.getElementById("tplSelect").addEventListener("change", e => {
-  const id = e.target.value;
-  if (!id) return;
-  applyTemplateById(id);
-});
-
-// ============================================================
-//  Кнопки
-// ============================================================
-let autoUpdate = true;
-document.getElementById("btnRefresh").addEventListener("click", () => render());
-document.getElementById("btnAuto").addEventListener("click", e => {
-  autoUpdate = !autoUpdate;
-  e.target.textContent = "Авто: " + (autoUpdate ? "ВКЛ" : "ВЫКЛ");
-});
-
-document.getElementById("btnCopy").addEventListener("click", () => {
-  const P = readParams();
-  const out = {
-    page: { w: toMm(P.page.w), h: toMm(P.page.h), scale: P.page.scale },
-    grid: { rows: P.grid.rows, alwaysSix: P.grid.alwaysSix,
-      topMargin: toMm(P.grid.topMargin), sideMargin: toMm(P.grid.sideMargin),
-      colGap: toMm(P.grid.colGap),
-      rowGap5: toMm(P.grid.rowGap5), rowGap6: toMm(P.grid.rowGap6) },
-    date: { h: toMm(P.date.h), size: P.date.size,
-      font: P.date.font, fontOther: P.date.fontOther,
-      color: P.date.color, colorOther: P.date.colorOther,
-      dx: toMm(P.date.dx), dy: toMm(P.date.dy) },
-    room: { h: toMm(P.room.h), size: P.room.size,
-      font: P.room.font, fontOther: P.room.fontOther,
-      color: P.room.color, colorOther: P.room.colorOther,
-      dx: toMm(P.room.dx), dy: toMm(P.room.dy),
-      template: P.room.template, showFloor: P.room.showFloor, floor: P.room.floor },
-    bar: { h: toMm(P.bar.h), bg: P.bar.bg,
-      line1: P.bar.line1, line1Font: P.bar.line1Font,
-      line1Size: P.bar.line1Size, line1Color: P.bar.line1Color,
-      line2: P.bar.line2, line2Font: P.bar.line2Font,
-      line2Size: P.bar.line2Size, line2Color: P.bar.line2Color,
-      dx: toMm(P.bar.dx), dy: toMm(P.bar.dy), lineGap: P.bar.lineGap,
-      clip: P.bar.clip },
-    art: { font: P.art.font, size: P.art.size, h: toMm(P.art.h),
-      right: toMm(P.art.right), top: toMm(P.art.top), padX: toMm(P.art.padX),
-      color: P.art.color, opacity: P.art.opacity },
-    weekday: { size: P.weekday.size, font: P.weekday.font,
-      form: P.weekday.form, case: P.weekday.case,
-      color: P.weekday.color,
-      padLeft: toMm(P.weekday.padLeft), y: toMm(P.weekday.y) },
-    line: { w: toMm(P.line.w), color: P.line.color,
-      top: toMm(P.line.top), bottom: toMm(P.line.bottom),
-      horiz: P.line.horiz, horizW: toMm(P.line.horizW), horizPad: toMm(P.line.horizPad) },
-    test: P.test,
-    images: images.map(im => ({
-      id: im.id, name: im.name, file: im.file || null,
-      x: im.x, y: im.y, scale: im.scale, baseW: im.baseW,
-      opacity: im.opacity, blend: im.blend,
-      bright: im.bright, contrast: im.contrast, sat: im.sat, clip: im.clip,
-    })),
-  };
-  const json = JSON.stringify(out, null, 2);
-  navigator.clipboard.writeText(json).then(
-    () => log("Параметры шаблона скопированы (" + Math.round(json.length/1024) + " КБ)"),
-    () => log("Не удалось скопировать", "err")
-  );
-});
-
-document.getElementById("btnPdf").addEventListener("click", () => exportPdf());
-document.getElementById("btnPng").addEventListener("click", () => {
-  const scale = prompt("Масштаб PNG (1, 2, 3, 4):", "2");
-  const s = parseInt(scale, 10);
-  if ([1,2,3,4].includes(s)) exportPng(s);
-});
-
-document.getElementById("btnTplSave").addEventListener("click", () => {
-  const P = readParams();
-  const out = {
-    page: { w: toMm(P.page.w), h: toMm(P.page.h), scale: P.page.scale },
-    grid: { rows: P.grid.rows, alwaysSix: P.grid.alwaysSix,
-      topMargin: toMm(P.grid.topMargin), sideMargin: toMm(P.grid.sideMargin),
-      colGap: toMm(P.grid.colGap),
-      rowGap5: toMm(P.grid.rowGap5), rowGap6: toMm(P.grid.rowGap6) },
-    date: { h: toMm(P.date.h), size: P.date.size,
-      font: P.date.font, fontOther: P.date.fontOther,
-      color: P.date.color, colorOther: P.date.colorOther,
-      dx: toMm(P.date.dx), dy: toMm(P.date.dy) },
-    room: { h: toMm(P.room.h), size: P.room.size,
-      font: P.room.font, fontOther: P.room.fontOther,
-      color: P.room.color, colorOther: P.room.colorOther,
-      dx: toMm(P.room.dx), dy: toMm(P.room.dy),
-      template: P.room.template, showFloor: P.room.showFloor, floor: P.room.floor },
-    bar: { h: toMm(P.bar.h), bg: P.bar.bg,
-      line1: P.bar.line1, line1Font: P.bar.line1Font,
-      line1Size: P.bar.line1Size, line1Color: P.bar.line1Color,
-      line2: P.bar.line2, line2Font: P.bar.line2Font,
-      line2Size: P.bar.line2Size, line2Color: P.bar.line2Color,
-      dx: toMm(P.bar.dx), dy: toMm(P.bar.dy), lineGap: P.bar.lineGap, clip: P.bar.clip },
-    art: { font: P.art.font, size: P.art.size, h: toMm(P.art.h),
-      right: toMm(P.art.right), top: toMm(P.art.top), padX: toMm(P.art.padX),
-      color: P.art.color, opacity: P.art.opacity },
-    weekday: { size: P.weekday.size, font: P.weekday.font,
-      form: P.weekday.form, case: P.weekday.case,
-      color: P.weekday.color, padLeft: toMm(P.weekday.padLeft), y: toMm(P.weekday.y) },
-    line: { w: toMm(P.line.w), color: P.line.color,
-      top: toMm(P.line.top), bottom: toMm(P.line.bottom),
-      horiz: P.line.horiz, horizW: toMm(P.line.horizW), horizPad: toMm(P.line.horizPad) },
-    test: P.test,
-    images: images.map(im => ({
-      id: im.id, name: im.name, file: im.file || null,
-      x: im.x, y: im.y, scale: im.scale, baseW: im.baseW,
-      opacity: im.opacity, blend: im.blend,
-      bright: im.bright, contrast: im.contrast, sat: im.sat, clip: im.clip,
-    })),
-  };
-  const json = JSON.stringify(out, null, 2);
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([json], { type: "application/json" }));
-  a.download = "template.json";
-  a.click();
-  log("Шаблон сохранён в файл template.json — положите его в /templates/ и добавьте в index.json");
-});
-
-document.getElementById("btnTplApply").addEventListener("click", async () => {
-  const txt = document.getElementById("tplPaste").value.trim();
-  if (!txt) return;
-  try {
-    const P = JSON.parse(txt);
-    applyParams(P);
-    if (Array.isArray(P.images)) {
-      images = P.images.map((im, i) => ({
-        id: im.id || ("img"+(i+1)),
-        name: im.name || ("Изображение "+(i+1)),
-        dataUrl: im.dataUrl || null,
-        file: im.file || null,
-        x: im.x, y: im.y, scale: im.scale ?? 1, baseW: im.baseW ?? 40,
-        opacity: (() => {
-          let o = Number(im.opacity);
-          if (!isFinite(o)) return 1;
-          if (o > 1) o = o / 100;
-          return clamp(o, 0, 1);
-        })(),
-        blend: im.blend || "normal",
-        bright: im.bright ?? 0, contrast: im.contrast ?? 100, sat: im.sat ?? 100,
-        clip: im.clip !== false,
-      }));
-      images = await preloadImages(images);
-      renderImagesList();
-    }
-    document.getElementById("tplPaste").value = "";
-    log("Шаблон из JSON применён");
-    render();
-  } catch (e) {
-    log("Ошибка JSON: " + e.message, "err");
-  }
-});
-
-document.getElementById("pPageFormat").addEventListener("change", e => {
-  const v = e.target.value;
-  if (v === "custom") return;
-  const f = PAGE_FORMATS[v]; if (!f) return;
-  document.getElementById("pPageW").value = f.w;
-  document.getElementById("pPageH").value = f.h;
-  render();
-});
-
-document.getElementById("panel").addEventListener("input", (e) => {
-  if (e.target && e.target.id === "tplSelect") return;
-  if (e.target && e.target.id === "pBarBg") applyAccentFromBar();
-  if (e.target && e.target.id === "pArtOpacity") {
-    const v = clamp(e.target.value, 0, 100);
-    e.target.value = v;
-    const lbl = document.getElementById("pArtOpacityVal");
-    if (lbl) lbl.textContent = Math.round(v) + "%";
-  }
-  // Пересобираем сводки, если изменилось поле цвета/шрифта
-  if (e.target && COLOR_FIELDS.some(f => f.id === e.target.id)) renderColorSummary();
-  if (e.target && FONT_FIELDS.some(f => f.id === e.target.id)) renderFontSummary();
-  if (autoUpdate) render();
-});
-document.getElementById("panel").addEventListener("change", (e) => {
-  if (e.target && e.target.id === "tplSelect") return;
-  if (e.target && e.target.id === "pBarBg") applyAccentFromBar();
-  if (e.target && COLOR_FIELDS.some(f => f.id === e.target.id)) renderColorSummary();
-  if (e.target && FONT_FIELDS.some(f => f.id === e.target.id)) renderFontSummary();
-  if (autoUpdate) render();
-});
-
-// ============================================================
-//  Старт
-// ============================================================
-(async () => {
-  progressStart();
-  applyAccentFromBar();
-
-  try {
-    await loadFontsManifest();
-  } catch (e) {
-    log("Ошибка загрузки шрифтов: " + e.message, "err");
-  }
-  refreshFontSelects();
-  refreshFontList();
-  renderImagesList();
-
-  try {
-    await loadAllFontFaces();
-  } catch (e) {
-    log("Ошибка FontFace: " + e.message, "err");
-  }
-
-  try {
-    await loadTemplatesManifest();
-  } catch (e) {
-    log("Ошибка загрузки шаблонов: " + e.message, "err");
-  }
-
-  renderColorSummary();
-  renderFontSummary();
-
-  const firstTplId = Object.keys(savedTemplates)[0];
-  if (firstTplId) {
-    await applyTemplateById(firstTplId);
-  } else {
-    render();
-  }
-
-  progressDone();
-})();
-</script>
-
+<!-- Диалог выбора формата PNG -->
+<div id="pngDialog" class="dialog">
+  <div class="dialogCard">
+    <h3>Сохранить в PNG</h3>
+    <div class="hint">Выберите качество и способ сохранения.</div>
+    <div class="field"><label>Качество</label>
+      <select id="pngScale">
+        <option value="1">1×</option>
+        <option value="2" selected>2×</option>
+        <option value="3">3×</option>
+        <option value="4">4×</option>
+        <option value="5">5×</option>
+      </select>
+    </div>
+    <div class="field"><label>Способ</label>
+      <select id="pngMode">
+        <option value="files" selected>Отдельными изображениями</option>
+        <option value="zip">Один архив (ZIP)</option>
+      </select>
+    </div>
+    <div class="btns" style="margin-top:12px">
+      <button class="secondary" id="pngCancel">Отмена</button>
+      <button id="pngOk">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Плашка благодарности после сохранения -->
+<div id="thanksDialog" class="dialog">
+  <div class="dialogCard" style="max-width:440px;text-align:center">
+    <h3 style="margin:0 0 12px">Спасибо, что пользуетесь моим генератором!</h3>
+
+    <img src="Images/Qr.png" alt="QR-код канала"
+         onerror="this.style.display='none'"
+         style="width:180px;height:180px;display:block;margin:0 auto 12px;border-radius:6px;border:1px solid #eee">
+
+    <div class="hint" style="font-size:12px;margin-bottom:10px">
+      Если хотите отблагодарить меня — подписывайтесь на мой канал-портфолио:<br>
+      <a href="https://t.me/ARTemaARTema" target="_blank" rel="noopener"
+         style="color:var(--accent);font-weight:600">t.me/ARTemaARTema</a>
+    </div>
+
+    <div class="hint" style="font-size:12px;line-height:1.5;margin-bottom:10px;text-align:left">
+      Меня зовут Савицкий Артём. Я занимаюсь графическим дизайном, полиграфией и 3D-моделированием, анимацией и визуализацией.
+    </div>
+    <div class="hint" style="font-size:12px;line-height:1.5;margin-bottom:10px;text-align:left">
+      По вопросам сотрудничества вы можете связаться со мной в Telegram/WhatsApp/Макс по телефону:
+      <a href="#" class="copyPhone" data-phone="89881426702"
+         style="color:var(--accent);font-weight:600;text-decoration:none;cursor:pointer">89881426702</a>
+    </div>
+
+    <div class="hint" style="font-size:12px;line-height:1.5;margin-bottom:14px;text-align:left">
+      А если хотите отблагодарить меня финансово — можете сделать перевод на OZON банк по тому же телефону:
+      <a href="#" class="copyPhone" data-phone="89881426702"
+         style="color:var(--accent);font-weight:600;text-decoration:none;cursor:pointer">89881426702</a>
+    </div>
+    <div class="muted" style="font-size:12px;line-height:1.5;margin-bottom:14px;text-align:left">
+      Мне будет очень приятно))) Хорошего тебе дня!
+    </div>
+
+    <div class="btns">
+      <button id="thanksClose" style="flex:1">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- Тост-уведомление -->
+<div id="toast" class="toast"></div>
+
+<script type="module" src="js/main.js"></script>
 </body>
 </html>
