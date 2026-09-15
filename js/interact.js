@@ -155,7 +155,6 @@ function bindMirror(srcId, dstId) {
 }
 
 bindMirror("pRoomShowFloor", "pRoomShowFloor2");
-bindMirror("pRoomFloor", "pRoomFloor2");
 
   
   // --- Изменения на панели ---
