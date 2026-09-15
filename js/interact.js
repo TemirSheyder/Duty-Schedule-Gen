@@ -127,7 +127,33 @@ export function initUI() {
       });
     });
   });
+  
+// --- Синхронизация полей «Отображать этаж» и «Этаж» между секциями ---
+function bindMirror(srcId, dstId) {
+  const src = document.getElementById(srcId);
+  const dst = document.getElementById(dstId);
+  if (!src || !dst) return;
 
+  const isCheckbox = src.type === "checkbox";
+
+  src.addEventListener("input", () => {
+    if (isCheckbox) dst.checked = src.checked;
+    else dst.value = src.value;
+  });
+  dst.addEventListener("input", () => {
+    if (isCheckbox) src.checked = dst.checked;
+    else src.value = dst.value;
+  });
+
+  // Начальная синхронизация
+  if (isCheckbox) dst.checked = src.checked;
+  else dst.value = src.value;
+}
+
+bindMirror("pRoomShowFloor", "pRoomShowFloor2");
+bindMirror("pRoomFloor", "pRoomFloor2");
+
+  
   // --- Изменения на панели ---
   const panel = document.getElementById("panel");
 
