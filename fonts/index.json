@@ -11,7 +11,7 @@
     { "key": "gilroy-medium",       "label": "Gilroy Medium",       "file": "Gilroy-Medium.ttf",          "family": "Gilroy",     "style": "Medium",    "weight": 500 },
     { "key": "gilroy-semibold",     "label": "Gilroy SemiBold",     "file": "Gilroy-Semibold.ttf",        "family": "Gilroy",     "style": "SemiBold",  "weight": 600 },
     { "key": "gilroy-bold",         "label": "Gilroy Bold",         "file": "Gilroy-Bold.ttf",            "family": "Gilroy",     "style": "Bold",      "weight": 700 },
-    { "key": "gilroy-extrabold",    "label": "Gilroy ExtraBold",    "file": "Gilroy-ExtraBold.ttf",       "family": "Gilroy",     "style": "ExtraBold", "weight": 800 },
+    { "key": "gilroy-extrabold",    "label": "Gilroy Extrabold",    "file": "Gilroy-Extrabold.ttf",       "family": "Gilroy",     "style": "Extrabold", "weight": 800 },
     { "key": "gilroy-black",        "label": "Gilroy Black",        "file": "Gilroy-Black.ttf",           "family": "Gilroy",     "style": "Black",     "weight": 900 },
     { "key": "gilroy-heavy",        "label": "Gilroy Heavy",        "file": "Gilroy-Heavy.ttf",           "family": "Gilroy",     "style": "Heavy",     "weight": 950 },
     { "key": "gilroy-italic",       "label": "Gilroy Italic",       "file": "Gilroy-RegularItalic.ttf",   "family": "Gilroy",     "style": "Italic",    "weight": 400, "italic": true },
