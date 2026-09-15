@@ -1,6 +1,7 @@
 {
   "templates": [
-
+    
+    { "id": "tpl11",     "label": "Шаблон №11", "file": "tpl11.json" },
     { "id": "tmpl1",     "label": "Шаблон №1",  "file": "tmpl№1.json" },
     { "id": "tmpl2",     "label": "Шаблон №2",  "file": "tmpl№2.json" },
     { "id": "tmpl3",     "label": "Шаблон №3",  "file": "tmpl№3.json" },
@@ -8,7 +9,6 @@
     { "id": "tmpl6",     "label": "Шаблон №6",  "file": "tmpl6.json" },
     { "id": "tmpl7",     "label": "Шаблон №7",  "file": "tmpl№7.json" },
     { "id": "tmpl10",    "label": "Шаблон №10", "file": "tmpl№10.json" },
-    { "id": "tpl11",     "label": "Шаблон №11", "file": "tpl11.json" },
     { "id": "tmplRed",   "label": "Красный",    "file": "tmplRed.json" },
     { "id": "tmplBlack", "label": "Чёрный",     "file": "tmplBlack.json" }
   ]
