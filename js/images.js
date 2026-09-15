@@ -23,7 +23,7 @@ export function renderImagesList() {
     card.className = "imgCard";
 
     // Folder-селект
-    const folderOpts = ['<option value="">— из папки —</option>']
+    const folderOpts = ['<option value="">— Свой файл —</option>']
       .concat(state.folderImages.map(f =>
         `<option value="${f}" ${img.file === f ? "selected" : ""}>${f}</option>`))
       .join("");
@@ -38,7 +38,7 @@ export function renderImagesList() {
         <button class="mini secondary" data-act="del">✕</button>
       </div>
       ${thumbHtml}
-      <div class="field"><label>Из папки</label>
+      <div class="field"><label>Из Свой файл</label>
         <select data-act="folder">${folderOpts}</select>
       </div>
       <div class="field"><label>Загрузить файл</label><input type="file" data-act="file" accept="image/*"></div>
