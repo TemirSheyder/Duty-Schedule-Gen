@@ -11,7 +11,7 @@ export const FONT_TARGETS = [
   { target: "weekday.font",   label: "Дни недели" },
   { target: "bar.line1Font",  label: "Плашка: строка 1" },
   { target: "bar.line2Font",  label: "Плашка: строка 2" },
-  { target: "art.font",       label: "ARTemaARTema" },
+  { target: "art.font",       label: "ARTtemaARTtema" },
 ];
 
 function readPair(target) {
