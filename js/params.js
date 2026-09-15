@@ -111,7 +111,7 @@ export function readVisualParams() {
       clip: chk("pBarClip"),
     },
     art: {
-      text: "t.me/ARTemaARTema",
+      text: "t.me/ARTtemaARTtema",
       fontFamily: artPicker.fontFamily, fontStyle: artPicker.fontStyle, align: "left",
       size: fsv("pArtSize"), tracking: num("pArtTracking"),
       h: mmv("pArtH"),
