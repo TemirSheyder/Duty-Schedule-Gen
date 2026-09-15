@@ -23,9 +23,8 @@ const NON_RENDER_IDS = new Set([
   "pPageW", "pPageH",
   "pLineHoriz",
   "pAlwaysSix",
-  // дубликаты «Этаж» — обновляются через bindMirror, чтобы не было двойного render()
+  // чекбоксы «Этаж» — синхронизируются через bindMirror, чтобы не было двойного render()
   "pRoomShowFloor", "pRoomShowFloor2",
-  "pRoomFloor", "pRoomFloor2",
 ]);
 
 export function initUI() {
