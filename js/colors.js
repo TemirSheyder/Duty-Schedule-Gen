@@ -11,7 +11,7 @@ export const COLOR_FIELDS = [
   { id: "pBarLine2Color",  label: "Плашка: строка 2" },
   { id: "pWdColor",        label: "Дни недели" },
   { id: "pLineColor",      label: "Линии" },
-  { id: "pArtColor",       label: "ARTtemaARTtema" },
+  { id: "pArtColor",       label: "ARTtemaARTema" },
 ];
 
 export function renderColorSummary() {
