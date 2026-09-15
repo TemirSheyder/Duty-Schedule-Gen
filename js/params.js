@@ -95,7 +95,7 @@ export function readVisualParams() {
       dx: mmv("pRoomDX"), dy: mmv("pRoomDY"),
       template: str("pRoomTemplate"),
       showFloor: chk("pRoomShowFloor"),
-      floor: parseInt(str("pRoomFloor"), 10) || 0,
+      floor: parseInt(str("pRoomFloor2"), 10) || 0,
     },
     bar: {
       h: mmv("pBarH"), bg: color("pBarBg"),
@@ -280,7 +280,6 @@ export function applyVisualParams(P) {
     setNum("pRoomDX", P.room.dx); setNum("pRoomDY", P.room.dy);
     setStr("pRoomTemplate", P.room.template);
     setChk("pRoomShowFloor", P.room.showFloor);
-    if (P.room.floor != null) setNum("pRoomFloor", P.room.floor);
     setChk("pRoomShowFloor2", P.room.showFloor);
     if (P.room.floor != null) setNum("pRoomFloor2", P.room.floor);
     setCol("pRoomColor", P.room.color); setCol("pRoomColorOther", P.room.colorOther);
