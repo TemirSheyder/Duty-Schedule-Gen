@@ -23,6 +23,9 @@ const NON_RENDER_IDS = new Set([
   "pPageW", "pPageH",
   "pLineHoriz",
   "pAlwaysSix",
+  // дубликаты «Этаж» — обновляются через bindMirror, чтобы не было двойного render()
+  "pRoomShowFloor", "pRoomShowFloor2",
+  "pRoomFloor", "pRoomFloor2",
 ]);
 
 export function initUI() {
@@ -136,14 +139,15 @@ function bindMirror(srcId, dstId) {
 
   const isCheckbox = src.type === "checkbox";
 
-  src.addEventListener("input", () => {
-    if (isCheckbox) dst.checked = src.checked;
-    else dst.value = src.value;
-  });
-  dst.addEventListener("input", () => {
-    if (isCheckbox) src.checked = dst.checked;
-    else src.value = dst.value;
-  });
+  function sync(from, to) {
+    if (isCheckbox) to.checked = from.checked;
+    else to.value = from.value;
+    if (state.autoUpdate) render();
+  }
+
+  const evt = isCheckbox ? "change" : "input";
+  src.addEventListener(evt, () => sync(src, dst));
+  dst.addEventListener(evt, () => sync(dst, src));
 
   // Начальная синхронизация
   if (isCheckbox) dst.checked = src.checked;
