@@ -281,6 +281,8 @@ export function applyVisualParams(P) {
     setStr("pRoomTemplate", P.room.template);
     setChk("pRoomShowFloor", P.room.showFloor);
     if (P.room.floor != null) setNum("pRoomFloor", P.room.floor);
+    setChk("pRoomShowFloor2", P.room.showFloor);
+    if (P.room.floor != null) setNum("pRoomFloor2", P.room.floor);
     setCol("pRoomColor", P.room.color); setCol("pRoomColorOther", P.room.colorOther);
     applyFontBlock("room", P.room, { family: "font", familyOther: "fontOther" }, "Montserrat", "Regular", "center", "room");
   }
