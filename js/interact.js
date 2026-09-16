@@ -84,7 +84,7 @@ export function initUI() {
       if (isControlElement(e.target)) return;
       if (e.target && e.target.id === "pBarBg") applyAccentFromBar();
       if (e.target && e.target.id === "pArtOpacity") {
-        const v = clamp(e.target.value, 0, 100);
+        const v = clamp(e.target.value, 15, 100);
         e.target.value = v;
         const lbl = document.getElementById("pArtOpacityVal");
         if (lbl) lbl.textContent = Math.round(v) + "%";
