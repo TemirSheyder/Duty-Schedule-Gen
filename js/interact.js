@@ -67,10 +67,10 @@ export function initUI() {
   const mFrom = document.getElementById("tMonthFrom");
   const mTo   = document.getElementById("tMonthTo");
   // Значения по умолчанию: текущий месяц → через 6 месяцев
-function toMonthInputValue(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
+  function toMonthInputValue(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}`;
 }
 if (!mFrom.value) {
   const now = new Date();
