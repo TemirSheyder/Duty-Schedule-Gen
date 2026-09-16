@@ -66,6 +66,18 @@ export function initUI() {
   // --- Валидация периода ---
   const mFrom = document.getElementById("tMonthFrom");
   const mTo   = document.getElementById("tMonthTo");
+  // Значения по умолчанию: текущий месяц → через 6 месяцев
+function toMonthInputValue(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+if (!mFrom.value) {
+  const now = new Date();
+  mFrom.value = toMonthInputValue(now);
+  const plus6 = new Date(now.getFullYear(), now.getMonth() + 6, 1);
+  mTo.value = toMonthInputValue(plus6);
+}
   function validatePeriod() {
     if (mFrom.value && mTo.value && mTo.value < mFrom.value) {
       showToast("Месяц «по» не может быть раньше месяца «с». Значение скорректировано.", 3200);
