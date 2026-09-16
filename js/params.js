@@ -117,7 +117,7 @@ export function readVisualParams() {
       right: mmv("pArtRight"), top: mmv("pArtTop"),
       padX: mmv("pArtPadX"),
       color: color("pArtColor"),
-      opacity: Math.max(0.20, clamp(num("pArtOpacity", 40), 20, 100) / 100),
+      opacity: Math.max(0.15, clamp(num("pArtOpacity", 40), 15, 100) / 100),
     },
     weekday: {
       size: fsv("pWdSize"), tracking: num("pWdTracking"),
@@ -331,8 +331,9 @@ export function applyVisualParams(P) {
     setNum("pArtRight", P.art.right); setNum("pArtTop", P.art.top);
     setNum("pArtPadX", P.art.padX);
     setCol("pArtColor", P.art.color);
+
     const o = Number(P.art.opacity);
-    const opPct = Math.max(20, clamp(isFinite(o) ? (o > 1 ? o : o * 100) : 40, 20, 100));
+    const opPct = Math.max(15, clamp(isFinite(o) ? (o > 1 ? o : o * 100) : 40, 15, 100));
     setNum("pArtOpacity", opPct);
 
     if (P.art.font) {
@@ -373,7 +374,7 @@ export function applyVisualParams(P) {
   const ao = document.getElementById("pArtOpacity");
   const aol = document.getElementById("pArtOpacityVal");
   if (ao && aol) {
-    ao.value = Math.max(20, clamp(ao.value, 20, 100));
+    ao.value = Math.max(15, clamp(ao.value, 15, 100));
     aol.textContent = Math.round(Number(ao.value)) + "%";
   }
 
