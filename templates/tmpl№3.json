@@ -1,0 +1,174 @@
+{
+  "page": {
+    "w": 297,
+    "h": 210
+  },
+  "grid": {
+    "alwaysSix": false,
+    "topMargin": 15.9,
+    "sideMargin": 0,
+    "colGap": 0,
+    "rowGap": 11.5
+  },
+  "date": {
+    "h": 18.3,
+    "size": 48.5,
+    "tracking": 0,
+    "fontFamily": "Gilroy",
+    "fontStyle": "Regular",
+    "fontFamilyOther": "Gilroy",
+    "fontStyleOther": "Light",
+    "align": "center",
+    "color": {
+      "r": 0.00392156862745098,
+      "g": 0.00392156862745098,
+      "b": 0.00392156862745098
+    },
+    "colorOther": {
+      "r": 0.6980392156862745,
+      "g": 0.6980392156862745,
+      "b": 0.6980392156862745
+    },
+    "dx": 0,
+    "dy": 3.5
+  },
+  "room": {
+    "h": -0.8,
+    "size": 18,
+    "tracking": 0,
+    "fontFamily": "Montserrat",
+    "fontStyle": "Regular",
+    "fontFamilyOther": "Montserrat",
+    "fontStyleOther": "Regular",
+    "align": "center",
+    "color": {
+      "r": 0.23529411764705882,
+      "g": 0.615686274509804,
+      "b": 0.20392156862745098
+    },
+    "colorOther": {
+      "r": 0.6980392156862745,
+      "g": 0.6980392156862745,
+      "b": 0.6980392156862745
+    },
+    "dx": 0,
+    "dy": 3.4000000000000004,
+    "template": "НОМЕР",
+    "showFloor": false,
+    "floor": 0
+  },
+  "bar": {
+    "h": 44.2,
+    "bg": {
+      "r": 0.23529411764705882,
+      "g": 0.615686274509804,
+      "b": 0.20392156862745098
+    },
+    "line1": "График дежурств",
+    "line1FontFamily": "Gilroy",
+    "line1FontStyle": "Light",
+    "line1Align": "left",
+    "line1Size": 29,
+    "line1Tracking": 0,
+    "line1Color": {
+      "r": 1,
+      "g": 1,
+      "b": 1
+    },
+    "line2": "МЕСЯЦ ГОД",
+    "line2FontFamily": "Gilroy",
+    "line2FontStyle": "SemiBold",
+    "line2Align": "left",
+    "line2Size": 37,
+    "line2Tracking": 0,
+    "line2Color": {
+      "r": 1,
+      "g": 1,
+      "b": 1
+    },
+    "dx": 44.8,
+    "dy": -0.3,
+    "lineGap": 1.25,
+    "clip": true
+  },
+  "art": {
+    "fontFamily": "Gilroy",
+    "fontStyle": "Regular",
+    "align": "left",
+    "size": 12,
+    "tracking": 0,
+    "h": 10.6,
+    "right": 7.500000000000001,
+    "top": 0.5,
+    "padX": 2,
+    "color": {
+      "r": 0,
+      "g": 0,
+      "b": 0
+    },
+    "opacity": 0.4
+  },
+  "weekday": {
+    "size": 15,
+    "tracking": 0,
+    "fontFamily": "Montserrat",
+    "fontStyle": "Regular",
+    "align": "left",
+    "form": "short",
+    "case": "upper",
+    "color": {
+      "r": 0.00392156862745098,
+      "g": 0.00392156862745098,
+      "b": 0.00392156862745098
+    },
+    "padLeft": 3.8,
+    "y": 54.400000000000006
+  },
+  "line": {
+    "w": 0.5,
+    "color": {
+      "r": 0.00392156862745098,
+      "g": 0.00392156862745098,
+      "b": 0.00392156862745098
+    },
+    "dash": "solid",
+    "top": 11.6,
+    "bottom": 155.6,
+    "horiz": false,
+    "horizW": 0.5,
+    "horizDash": "solid",
+    "horizPad": 0
+  },
+  "images": [
+    {
+      "id": "img1",
+      "name": "Логотип",
+      "file": "logo SS 3@2x.png",
+      "x": 67.21969697434454,
+      "y": 65.2540404084243,
+      "scale": 3.4,
+      "baseW": 23,
+      "opacity": 1,
+      "blend": "screen",
+      "bright": 100,
+      "contrast": 200,
+      "sat": 0,
+      "clip": true
+    },
+    {
+      "id": "img2",
+      "name": "Фон",
+      "file": "Polosi.png",
+      "x": 676.5727273190055,
+      "y": 9.29242424113875,
+      "scale": 2.95,
+      "baseW": 144,
+      "opacity": 1,
+      "blend": "normal",
+      "bright": -15,
+      "contrast": 152,
+      "sat": 0,
+      "clip": true
+    }
+  ]
+}
