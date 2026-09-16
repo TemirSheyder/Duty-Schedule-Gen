@@ -5,11 +5,13 @@ import {
   loadTemplatesManifest, applyTemplateById, applyTemplateFromJson, snapshotTemplate,
   downloadTemplateFile, pickTemplateFile, handleTemplateFileInput,
 } from "./templates.js";
+import { updateHorizDeps } from "./params.js";
 import { PAGE_FORMATS, toMm } from "./config.js";
 import { applyAccentFromBar, clamp, log, showToast } from "./utils.js";
 
 export function initUI() {
   applyAccentFromBar();
+  updateHorizDeps();
 
   // --- Верхние кнопки (могут отсутствовать в HTML) ---
   const btnRefresh = document.getElementById("btnRefresh");
@@ -92,6 +94,7 @@ export function initUI() {
     panel.addEventListener("change", e => {
       if (isControlElement(e.target)) return;
       if (e.target && e.target.id === "pBarBg") applyAccentFromBar();
+      if (e.target && e.target.id === "pLineHoriz") updateHorizDeps();
       if (state.autoUpdate) render();
     });
   }
@@ -100,7 +103,6 @@ export function initUI() {
   const showFloor1 = document.getElementById("pRoomShowFloor");
   const showFloor2 = document.getElementById("pRoomShowFloor2");
   if (showFloor1 && showFloor2) {
-    // При инициализации: если один включён, а другой выключен — объединяем в true
     if (showFloor1.checked !== showFloor2.checked) {
       const unified = showFloor1.checked || showFloor2.checked;
       showFloor1.checked = unified;
@@ -120,7 +122,6 @@ export function initUI() {
   const floor1 = document.getElementById("pRoomFloor");
   const floor2 = document.getElementById("pRoomFloor2");
   if (floor1 && floor2) {
-    // При инициализации: если значения разные — берём ненулевое
     if (floor1.value !== floor2.value) {
       const unified = (parseInt(floor2.value, 10) || 0) || (parseInt(floor1.value, 10) || 0);
       floor1.value = unified;
