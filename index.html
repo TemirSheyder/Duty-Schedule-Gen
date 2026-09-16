@@ -63,19 +63,23 @@
 
     <!-- НАСТРОЙКИ -->
     <details open>
-      <summary>Настройки</summary>
+      <summary>Настройки основные</summary>
       <div class="details-body">
         <div class="hint">1. Период и состав комнат</div>
         <div class="field"><label>С</label><input type="month" id="tMonthFrom"><label>По</label><input type="month" id="tMonthTo"></div>
-        <div class="hint">Выбранный промежуток не буден отображен на превью, но появится при сохранении.</div>
+        <div class="hint">Выбранный промежуток не буден отображен на превью, но появится при экспорте в PDF/PNG.</div>
         <div class="field" style="align-items:flex-start">
           <label style="padding-top:4px">Комнаты</label>
           <textarea id="tRooms" style="min-height:44px">1-9, 21-25</textarea>
         </div>
-        <div class="hint">Формат: 1-9, 21-25, 30, 42-45</div>
+        <div class="muted">Пример:</div>
+        <div class="muted">Если на этаже есть комнаты с 201 по 209 и с 221 по 225</div>
+        <div class="muted">- впишите 1-9, 21-25</div>
+        <div class="muted">(без обозначения этажа!. Отображение этажа вы можете включить ниже.)</div>
         <div class="field"><label>Отображать этаж</label><input type="checkbox" id="pRoomShowFloor2"></div>
+        <div class="hint">Пример:</div>
         <div class="field"><label>Этаж</label><input type="number" id="pRoomFloor2" value="1" step="1"></div>
-        <div class="field"><label>Этаж</label></div>
+
         <div class="field"><label>Последняя продежурившая комната</label><input type="number" id="tLastRoom" value="22" step="1"></div>
         <div class="hint">Отметьте номер любой комнаты и дату её дежурства, какие помните, чтобы расписание составилось правильно.</div>
         <div class="field"><label>Дата её дежурства</label><input type="date" id="tLastDate" value="2025-12-29"></div>
@@ -87,9 +91,10 @@
         </div>
 
         <div class="hint" style="margin-top:8px">2. Предпросмотр</div>
-        <div class="field"><label>Месяц превью</label><input type="month" id="tPreviewMonth" value="2026-12"></div>
+        <div class="field"><label>Месяц превью</label><input type="month" id="tPreviewMonth"></div>
+<!--
         <div class="field"><label>Масштаб превью</label><input type="number" id="pScale" value="1.1" step="0.05"><span class="unit">×</span></div>
-
+-->
         <div class="hint" style="margin-top:8px">3. Формат листа</div>
         <div class="field"><label>Формат листа</label>
           <select id="pPageFormat">
