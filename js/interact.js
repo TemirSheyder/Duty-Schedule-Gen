@@ -72,6 +72,11 @@ export function initUI() {
     const m = String(date.getMonth() + 1).padStart(2, "0");
     return `${y}-${m}`;
 }
+  // Значение по умолчанию для месяца превью: текущий месяц
+  const tPrev = document.getElementById("tPreviewMonth");
+  if (tPrev && !tPrev.value) {
+    tPrev.value = toMonthInputValue(new Date());
+}
 if (!mFrom.value) {
   const now = new Date();
   mFrom.value = toMonthInputValue(now);
