@@ -1,6 +1,7 @@
 import { toPt, formatKeyOf } from "./config.js";
 import { clamp } from "./utils.js";
 import { FONTS, listFontStylesByFamily } from "./fonts.js";
+import { signedParams } from "./schedule.js";
 
 function num(id, fallback = 0) {
   const el = document.getElementById(id);
@@ -135,6 +136,14 @@ export function readVisualParams() {
       horizDash: str("pLineHorizDash", "solid"),
       horizPad: mmv("pLineHorizPad"),
     },
+    sign: {
+      on: chk("pSignOn"),
+      dateScale: clamp(num("pSignDateScale", 100), 30, 100),
+      pad: mmv("pSignPad"),
+      safe: Math.max(0, mmv("pSignSafe")),
+      w: mmv("pSignW"),
+      dash: str("pSignDash", "solid"),
+    },
   };
 }
 
@@ -152,7 +161,7 @@ export function readWorkParams() {
 }
 
 export function readParams() {
-  return { ...readVisualParams(), work: readWorkParams() };
+  return signedParams({ ...readVisualParams(), work: readWorkParams() });
 }
 
 function setNum(id, v) { const el = document.getElementById(id); if (el && v != null && isFinite(v)) el.value = v; }
@@ -371,6 +380,15 @@ export function applyVisualParams(P) {
     setNum("pLineHorizPad", P.line.horizPad);
   }
 
+  setChk("pSignOn", P.sign?.on);
+  if (P.sign) {
+    setNum("pSignDateScale", P.sign.dateScale);
+    setNum("pSignPad", P.sign.pad);
+    setNum("pSignSafe", P.sign.safe);
+    setNum("pSignW", P.sign.w);
+    setStr("pSignDash", P.sign.dash || "solid");
+  }
+
   const ao = document.getElementById("pArtOpacity");
   const aol = document.getElementById("pArtOpacityVal");
   if (ao && aol) {
@@ -378,14 +396,19 @@ export function applyVisualParams(P) {
     aol.textContent = Math.round(Number(ao.value)) + "%";
   }
 
-  updateHorizDeps();
+  updatePanelDeps();
 }
 
-export function updateHorizDeps() {
-  const chkEl = document.getElementById("pLineHoriz");
-  const deps = document.querySelector(".horizDeps");
+function toggleDeps(chkId, depsSelector) {
+  const chkEl = document.getElementById(chkId);
+  const deps = document.querySelector(depsSelector);
   if (!chkEl || !deps) return;
   deps.classList.toggle("disabled", !chkEl.checked);
+}
+
+export function updatePanelDeps() {
+  toggleDeps("pLineHoriz", ".horizDeps");
+  toggleDeps("pSignOn", ".signDeps");
 }
 
 export function syncPageFormatSelect() {
@@ -408,5 +431,5 @@ export function initFontPickers() {
   writeAlign("weekday", "left");
   writeAlign("bar.line1", "left");
   writeAlign("bar.line2", "left");
-  updateHorizDeps();
+  updatePanelDeps();
 }

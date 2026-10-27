@@ -3,7 +3,7 @@ import { readParams } from "./params.js";
 import {
   MONTHS_RU, getWeekdayLabel,
   parseRooms, buildFullSchedule, formatRoom,
-  calcRows, calcRowGap,
+  calcRows, calcRowGap, barTextX, barLineY,
 } from "./schedule.js";
 import { labelOf } from "./fonts.js";
 import { processImage, getImageDimensions, log, clearLog, clamp } from "./utils.js";
@@ -40,6 +40,9 @@ function dashAttr(dashKey) {
   const d = LINE_DASHES[dashKey];
   if (!d || !d.dash) return "";
   return `stroke-dasharray="${d.dash.join(",")}"`;
+}
+function lineEl(x1, y1, x2, y2, color, w, dash, opacity = 1) {
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${rgbCss(color)}" stroke-opacity="${opacity}" stroke-width="${w}" ${dashAttr(dash)}/>`;
 }
 
 export function buildSvgForMonth(P, year, month, scale, processedImages) {
@@ -118,18 +121,9 @@ export function buildSvgForMonth(P, year, month, scale, processedImages) {
     parts.push(`</g>`);
   }
 
-  const lineGapPx = P.bar.line1Size * P.bar.lineGap;
-  const midY = barH / 2 + P.bar.dy;
-  const y1 = midY + lineGapPx / 2;
-  const y2 = midY - lineGapPx / 2;
-
-  const barLeft = P.bar.dx, barRight = PAGE_W - P.bar.dx;
-  const bar1X = P.bar.line1Align === "right" ? barRight
-              : P.bar.line1Align === "center" ? (barLeft + barRight) / 2
-              : barLeft;
-  const bar2X = P.bar.line2Align === "right" ? barRight
-              : P.bar.line2Align === "center" ? (barLeft + barRight) / 2
-              : barLeft;
+  const { y1, y2 } = barLineY(P);
+  const bar1X = barTextX(P, P.bar.line1Align);
+  const bar2X = barTextX(P, P.bar.line2Align);
 
   parts.push(`<text x="${X(bar1X)}" y="${Y(y1)}" font-family="${cssFamilyLocal(P.bar.line1FontFamily, P.bar.line1FontStyle)}" font-size="${P.bar.line1Size*scale}" font-weight="600" fill="${rgbCss(P.bar.line1Color)}" letter-spacing="${letterSpacingEm(P.bar.line1Tracking)}em" text-anchor="${anchorFor(P.bar.line1Align)}" dominant-baseline="middle">${P.bar.line1}</text>`);
   const line2Text = P.bar.line2.replace(/МЕСЯЦ/g, MONTHS_RU[month]).replace(/ГОД/g, year);
@@ -165,6 +159,10 @@ export function buildSvgForMonth(P, year, month, scale, processedImages) {
       const roomColor  = isCurrent ? P.room.color : P.room.colorOther;
       const roomX = textXFor(roomAlign, x0, CELL_W, P.room.dx);
       const roomY = yTopRoom + P.room.h / 2 + P.room.dy;
+      if (P.sign.on && isCurrent) {
+        const ySign = Y(yTopDate - P.sign.lineY);
+        parts.push(lineEl(X(x0 + P.sign.pad), ySign, X(x0 + CELL_W - P.sign.pad), ySign, P.line.color, P.sign.w * scale, P.sign.dash));
+      }
       parts.push(`<text x="${X(roomX)}" y="${Y(roomY)}" font-family="${cssFamilyLocal(roomFamily, roomStyle)}" font-size="${P.room.size*scale}" font-weight="${isCurrent ? 600 : 300}" fill="${rgbCss(roomColor)}" letter-spacing="${letterSpacingEm(P.room.tracking)}em" text-anchor="${anchorFor(roomAlign)}" dominant-baseline="middle">${roomStr}</text>`);
     }
   }
@@ -181,13 +179,13 @@ export function buildSvgForMonth(P, year, month, scale, processedImages) {
 
   for (let c = 1; c < COLS; c++) {
     const xLine = P.grid.sideMargin + c * (CELL_W + P.grid.colGap) - P.grid.colGap / 2;
-    parts.push(`<line x1="${X(xLine)}" y1="${Y(PAGE_H - P.line.top)}" x2="${X(xLine)}" y2="${Y(PAGE_H - P.line.bottom)}" stroke="${rgbCss(P.line.color)}" stroke-width="${P.line.w * scale}" ${dashAttr(P.line.dash)}/>`);
+    parts.push(lineEl(X(xLine), Y(PAGE_H - P.line.top), X(xLine), Y(PAGE_H - P.line.bottom), P.line.color, P.line.w * scale, P.line.dash, P.line.opacity));
   }
 
   if (P.line.horiz) {
     for (let r = 1; r < ROWS; r++) {
       const yMid = GRID_TOP - r * CELL_H - (r - 1) * rowGap - rowGap / 2;
-      parts.push(`<line x1="${X(P.grid.sideMargin + P.line.horizPad)}" y1="${Y(yMid)}" x2="${X(PAGE_W - P.grid.sideMargin - P.line.horizPad)}" y2="${Y(yMid)}" stroke="${rgbCss(P.line.color)}" stroke-width="${P.line.horizW * scale}" ${dashAttr(P.line.horizDash)}/>`);
+      parts.push(lineEl(X(P.grid.sideMargin + P.line.horizPad), Y(yMid), X(PAGE_W - P.grid.sideMargin - P.line.horizPad), Y(yMid), P.line.color, P.line.horizW * scale, P.line.horizDash));
     }
   }
 
@@ -195,8 +193,8 @@ export function buildSvgForMonth(P, year, month, scale, processedImages) {
   const artTextW = artSize * (0.55 + letterSpacingEm(P.art.tracking)) * P.art.text.length;
   const artW = artTextW + artPadX * 2;
   const artX = PAGE_W - artW - artRight;
-  const artY = PAGE_H - artH - artTop;
-  parts.push(`<text x="${X(artX + artPadX)}" y="${Y(artY + artH/2)}" font-family="${cssFamilyLocal(P.art.fontFamily, P.art.fontStyle)}" font-size="${artSize*scale}" font-weight="600" fill="${rgbCss(P.art.color)}" letter-spacing="${letterSpacingEm(P.art.tracking)}em" opacity="${P.art.opacity}" dominant-baseline="middle">${P.art.text}</text>`);
+  const artCy = P.art.cy ?? PAGE_H - artTop - artH / 2;
+  parts.push(`<text x="${X(P.art.x ?? artX + artPadX)}" y="${Y(artCy)}" font-family="${cssFamilyLocal(P.art.fontFamily, P.art.fontStyle)}" font-size="${artSize*scale}" font-weight="600" fill="${rgbCss(P.art.color)}" letter-spacing="${letterSpacingEm(P.art.tracking)}em" opacity="${P.art.opacity}" text-anchor="${anchorFor(P.art.align)}" dominant-baseline="middle">${P.art.text}</text>`);
 
   parts.push(`</svg>`);
   const result = parts.join("");
