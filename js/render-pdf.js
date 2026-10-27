@@ -3,7 +3,7 @@ import { readParams } from "./params.js";
 import {
   MONTHS_RU, getWeekdayLabel,
   parseRooms, buildFullSchedule, formatRoom,
-  calcRows, calcRowGap,
+  calcRows, calcRowGap, barLineY,
 } from "./schedule.js";
 import { FONTS, getFontBytes } from "./fonts.js";
 import {
@@ -26,6 +26,22 @@ function pdfDash(dashKey, thickness) {
   const d = LINE_DASHES[dashKey];
   if (!d || !d.dash) return undefined;
   return d.dash.map(v => v * Math.max(thickness, 0.3));
+}
+function baselineFromMiddle(font, middleY, size) {
+  if (!font) return middleY;
+  const f = font.embedder.font;
+  const xHeight = f.unitsPerEm ? f.xHeight / f.unitsPerEm : f.XHeight / 1000;
+  return middleY - size * xHeight / 2;
+}
+function drawRule(page, x1, y1, x2, y2, color, thickness, dash, opacity = 1) {
+  page.drawLine({
+    start: { x: x1, y: y1 },
+    end:   { x: x2, y: y2 },
+    thickness,
+    color: PDFLib.rgb(color.r, color.g, color.b),
+    opacity,
+    dashArray: pdfDash(dash, thickness),
+  });
 }
 
 export async function exportPdf() {
@@ -123,14 +139,14 @@ export async function exportPdf() {
       const cs = (Number(tracking) || 0) / 1000 * size;
       return font.widthOfTextAtSize(text, size) + cs * Math.max(0, text.length - 1);
     }
-    function drawAligned(page, font, text, size, tracking, color, xLeft, xRight, y, align) {
+    function drawAligned(page, font, text, size, tracking, color, xLeft, xRight, y, align, opacity = 1) {
       if (!font) return;
       const w = textWidth(font, text, size, tracking);
       let x = xLeft;
       if (align === "center") x = (xLeft + xRight) / 2 - w / 2;
       else if (align === "right") x = xRight - w;
       const cs = (Number(tracking) || 0) / 1000 * size;
-      page.drawText(text, { x, y, size, font, color, characterSpacing: cs });
+      page.drawText(text, { x, y, size, font, color, opacity, characterSpacing: cs });
     }
 
     for (let idx = fromIdx; idx <= toIdx; idx++) {
@@ -165,18 +181,15 @@ export async function exportPdf() {
         if (doClip && cfg.clip) page.pushOperators(popGraphicsState());
       }
 
-      const lineGapPx = P.bar.line1Size * P.bar.lineGap;
-      const midY = barH / 2 + P.bar.dy;
-      const y1 = midY + lineGapPx / 2;
-      const y2 = midY - lineGapPx / 2;
+      const { y1, y2 } = barLineY(P);
       const barLeft = P.bar.dx, barRight = PAGE_W - P.bar.dx;
       drawAligned(page, fontBarLine1, P.bar.line1, P.bar.line1Size, P.bar.line1Tracking,
         rgb(P.bar.line1Color.r, P.bar.line1Color.g, P.bar.line1Color.b),
-        barLeft, barRight, y1 - P.bar.line1Size * 0.35, P.bar.line1Align);
+        barLeft, barRight, baselineFromMiddle(fontBarLine1, y1, P.bar.line1Size), P.bar.line1Align);
       const line2Text = P.bar.line2.replace(/МЕСЯЦ/g, MONTHS_RU[month]).replace(/ГОД/g, String(year));
       drawAligned(page, fontBarLine2, line2Text, P.bar.line2Size, P.bar.line2Tracking,
         rgb(P.bar.line2Color.r, P.bar.line2Color.g, P.bar.line2Color.b),
-        barLeft, barRight, y2 - P.bar.line2Size * 0.35, P.bar.line2Align);
+        barLeft, barRight, baselineFromMiddle(fontBarLine2, y2, P.bar.line2Size), P.bar.line2Align);
 
       for (let i = 0; i < ROWS * COLS; i++) {
         const cellDate = new Date(gridStart); cellDate.setDate(gridStart.getDate() + i);
@@ -190,7 +203,7 @@ export async function exportPdf() {
         const dateAlign  = P.date.align || "center";
         const dateFont   = isCurrent ? fontDate : fontDateOther;
         const dateColor  = isCurrent ? P.date.color : P.date.colorOther;
-        const dateY      = yTopDate - P.date.h/2 + P.date.dy - P.date.size * 0.35;
+        const dateY      = baselineFromMiddle(dateFont, yTopDate - P.date.h/2 + P.date.dy, P.date.size);
         drawAligned(page, dateFont, dateStr, P.date.size, P.date.tracking,
           rgb(dateColor.r, dateColor.g, dateColor.b),
           x0 + P.date.dx, x0 + CELL_W + P.date.dx, dateY, dateAlign);
@@ -201,10 +214,14 @@ export async function exportPdf() {
         const room = schedule.get(key);
         if (room !== undefined) {
           const roomStr = formatRoom(room, P.room, rooms);
-          const roomAlign  = P.room.align || "center";
           const roomFont   = isCurrent ? fontRoom : fontRoomOther;
+          const roomAlign  = P.room.align || "center";
           const roomColor  = isCurrent ? P.room.color : P.room.colorOther;
-          const roomY      = yTopRoom + P.room.h/2 + P.room.dy - P.room.size * 0.35;
+          const roomY      = baselineFromMiddle(roomFont, yTopRoom + P.room.h/2 + P.room.dy, P.room.size);
+          if (P.sign.on && isCurrent) {
+            const ySign = yTopDate - P.sign.lineY;
+            drawRule(page, x0 + P.sign.pad, ySign, x0 + CELL_W - P.sign.pad, ySign, P.line.color, P.sign.w, P.sign.dash);
+          }
           drawAligned(page, roomFont, roomStr, P.room.size, P.room.tracking,
             rgb(roomColor.r, roomColor.g, roomColor.b),
             x0 + P.room.dx, x0 + CELL_W + P.room.dx, roomY, roomAlign);
@@ -224,43 +241,24 @@ export async function exportPdf() {
 
       for (let c = 1; c < COLS; c++) {
         const xLine = P.grid.sideMargin + c * (CELL_W + P.grid.colGap) - P.grid.colGap / 2;
-        page.drawLine({
-          start: { x: xLine, y: PAGE_H - P.line.bottom },
-          end:   { x: xLine, y: PAGE_H - P.line.top },
-          thickness: P.line.w,
-          color: rgb(P.line.color.r, P.line.color.g, P.line.color.b),
-          dashArray: pdfDash(P.line.dash, P.line.w),
-        });
+        drawRule(page, xLine, PAGE_H - P.line.bottom, xLine, PAGE_H - P.line.top, P.line.color, P.line.w, P.line.dash, P.line.opacity);
       }
 
       if (P.line.horiz) {
         for (let r = 1; r < ROWS; r++) {
           const yMid = GRID_TOP - r * CELL_H - (r - 1) * rowGap - rowGap / 2;
-          page.drawLine({
-            start: { x: P.grid.sideMargin + P.line.horizPad, y: yMid },
-            end:   { x: PAGE_W - P.grid.sideMargin - P.line.horizPad, y: yMid },
-            thickness: P.line.horizW,
-            color: rgb(P.line.color.r, P.line.color.g, P.line.color.b),
-            dashArray: pdfDash(P.line.horizDash, P.line.horizW),
-          });
+          drawRule(page, P.grid.sideMargin + P.line.horizPad, yMid, PAGE_W - P.grid.sideMargin - P.line.horizPad, yMid, P.line.color, P.line.horizW, P.line.horizDash);
         }
       }
 
       if (fontArt) {
         const artSize = P.art.size;
-        const cs = (Number(P.art.tracking) || 0) / 1000 * artSize;
-        const artTextW = fontArt.widthOfTextAtSize(P.art.text, artSize) + cs * Math.max(0, P.art.text.length - 1);
-        const artW = artTextW + P.art.padX * 2;
-        const artX = PAGE_W - artW - artRight;
-        const artY = PAGE_H - artH - artTop;
-        page.drawText(P.art.text, {
-          x: artX + P.art.padX,
-          y: artY + artH/2 - artSize * 0.35,
-          size: artSize, font: fontArt,
-          color: rgb(P.art.color.r, P.art.color.g, P.art.color.b),
-          opacity: P.art.opacity,
-          characterSpacing: cs,
-        });
+        const artW = textWidth(fontArt, P.art.text, artSize, P.art.tracking) + P.art.padX * 2;
+        const artTextX = P.art.x ?? PAGE_W - artW - artRight + P.art.padX;
+        const artCy = P.art.cy ?? PAGE_H - artTop - artH / 2;
+        drawAligned(page, fontArt, P.art.text, artSize, P.art.tracking,
+          rgb(P.art.color.r, P.art.color.g, P.art.color.b),
+          artTextX, artTextX, baselineFromMiddle(fontArt, artCy, artSize), P.art.align, P.art.opacity);
       }
 
       pageDone++;
